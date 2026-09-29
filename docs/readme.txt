@@ -3,11 +3,11 @@ Municipal Elections Management System
 
 Team
 ----
-Polina Omelyantseva / A00000000
+Polina Omelyantseva
 
 Contributions
 -------------
-Polina Omelyantseva / A00000000:
+Polina Omelyantseva:
 - Designed the EF Core Code First domain model (Municipality, Position, Candidate, Endorsement, MunicipalityAdmin)
 - Scaffolded the ASP.NET Core MVC solution and generated the InitialCreate migration with the EF Core CLI
 - Implemented ASP.NET Core Identity authentication/authorization with SuperAdmin and municipality-scoped admin roles
