@@ -18,7 +18,7 @@ Polina Omelyantseva / A00000000:
 - Deployed the application to Azure App Service with the az CLI
 What has not been completed
 ---------------------------
-- GitHub repository has not been created/pushed (no commits or remote yet)
+- GitHub repository has not been created/pushed (local history exists, no remote yet)
 - Final PDF/Word documentation document (project description, ERD, screenshots)
 - Azure deployment screenshot
 - Zipped D2L submission
