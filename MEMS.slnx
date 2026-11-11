@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MEMS.Admin/MEMS.Admin.csproj" />
+    <Project Path="src/MEMS.Api/MEMS.Api.csproj" />
+    <Project Path="src/MEMS.AppHost/MEMS.AppHost.csproj" />
+    <Project Path="src/MEMS.Data/MEMS.Data.csproj" />
+    <Project Path="src/MEMS.Public/MEMS.Public.csproj" />
+    <Project Path="src/MEMS.ServiceDefaults/MEMS.ServiceDefaults.csproj" />
+    <Project Path="src/MEMS.Shared/MEMS.Shared.csproj" />
+  </Folder>
+</Solution>
