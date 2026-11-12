@@ -1,0 +1,22 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>a6bfd3fd-4c09-48d3-85a1-958531625010</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.6.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MEMS.Api\MEMS.Api.csproj" />
+    <ProjectReference Include="..\MEMS.Admin\MEMS.Admin.csproj" />
+    <ProjectReference Include="..\MEMS.Public\MEMS.Public.csproj" />
+  </ItemGroup>
+
+</Project>
