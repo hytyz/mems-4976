@@ -1,0 +1,127 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject FlashService Flash
+@inject ServiceLinks Links
+@inject ILogger<MainLayout> Logger
+
+<nav class="navbar navbar-expand-lg navbar-dark site-nav sticky-top">
+    <div class="container-xl">
+        <a class="navbar-brand" href="">
+            <span class="brand-mark" aria-hidden="true">🗳️</span>
+            <span>MEMS <span class="fw-normal opacity-75">Admin</span></span>
+        </a>
+        <AuthorizeView>
+            <Authorized>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav"
+                        aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="adminNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><NavLink class="nav-link" href="" Match="NavLinkMatch.All">Dashboard</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="municipalities">@(context.User.IsSuperAdmin() ? "Municipalities" : "Municipality")</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="positions">Positions</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="candidates">Candidates</NavLink></li>
+                        @if (context.User.IsSuperAdmin())
+                        {
+                            <li class="nav-item"><NavLink class="nav-link" href="users">Administrators</NavLink></li>
+                        }
+                    </ul>
+                    <div class="d-flex flex-wrap align-items-center gap-2 text-white">
+                        <span class="admin-scope badge rounded-pill text-bg-light" title="Your access">
+                            @context.User.Identity?.Name ·
+                            @(context.User.IsSuperAdmin() ? "All municipalities" : context.User.TenantSlug())
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-light" data-theme-toggle aria-label="Toggle dark mode">◐</button>
+                        <form action="account/logout" method="post" class="m-0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="returnUrl" value="" />
+                            <button type="submit" class="btn btn-sm btn-light">Sign out</button>
+                        </form>
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <button type="button" class="btn btn-sm btn-outline-light ms-auto" data-theme-toggle aria-label="Toggle dark mode">◐</button>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</nav>
+
+<main class="page-content container-xl py-4">
+    @if (Flash.Message is not null)
+    {
+        <div class="alert @(Flash.IsError ? "alert-danger" : "alert-success") alert-dismissible" role="alert">
+            @Flash.Message
+            <button type="button" class="btn-close" aria-label="Close" @onclick="Flash.Clear"></button>
+        </div>
+    }
+
+    <ErrorBoundary @ref="errorBoundary">
+        <ChildContent>
+            @Body
+        </ChildContent>
+        <ErrorContent Context="exception">
+            @{ LogUnhandled(exception); }
+            <div class="alert alert-danger" role="alert">
+                <h2 class="h5">Something went wrong</h2>
+                <p class="mb-2">The page could not finish what it was doing. Nothing you did caused this; please try again.</p>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="Recover">Try again</button>
+            </div>
+        </ErrorContent>
+    </ErrorBoundary>
+</main>
+
+<footer class="site-footer">
+    <div class="container-xl d-flex flex-wrap justify-content-between gap-2">
+        <span>Municipal Elections Management System · Administration</span>
+        <span>
+            @if (Links.PublicSite is { } site)
+            {
+                <a href="@site" target="_blank" rel="noopener">Public site</a>
+            }
+            @if (Links.Api is { } api)
+            {
+                <span> · </span><a href="@($"{api}/swagger")" target="_blank" rel="noopener">API documentation</a>
+            }
+        </span>
+    </div>
+</footer>
+
+@code {
+    private ErrorBoundary? errorBoundary;
+    private Exception? lastLogged;
+
+    protected override void OnInitialized()
+    {
+        Flash.Changed += OnFlashChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnFlashChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Flash.OnNavigated();
+        errorBoundary?.Recover();
+    }
+
+    private void Recover() => errorBoundary?.Recover();
+
+    // The full exception goes to the structured log (and the Aspire dashboard); the user only sees a friendly message.
+    private void LogUnhandled(Exception exception)
+    {
+        if (!ReferenceEquals(exception, lastLogged))
+        {
+            lastLogged = exception;
+            Logger.LogError(exception, "Unhandled exception while rendering {Uri}", Navigation.Uri);
+        }
+    }
+
+    public void Dispose()
+    {
+        Flash.Changed -= OnFlashChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/admin/" />
+    <script src="@Assets["js/theme.js"]"></script>
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["MEMS.Admin.styles.css"]" />
+    <link rel="icon" href="favicon.ico" />
+    <ImportMap />
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+
+<body>
+    <Routes @rendermode="PageRenderMode" />
+    <ReconnectModal />
+    <div id="blazor-error-ui" class="alert alert-danger m-0 rounded-0" role="alert">
+        Something went wrong and this page stopped responding.
+        <a href="" class="reload alert-link">Reload</a>
+        <button type="button" class="dismiss btn-close float-end" aria-label="Dismiss"></button>
+    </div>
+    <script src="@Assets["lib/bootstrap/js/bootstrap.bundle.min.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    // Sign-in pages are plain server-rendered forms (they set the auth cookie);
+    // everything else runs as interactive Blazor Server.
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}

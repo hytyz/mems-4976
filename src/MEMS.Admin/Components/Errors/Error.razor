@@ -1,0 +1,32 @@
+@page "/error"
+@using System.Diagnostics
+
+<PageTitle>Error · MEMS Admin</PageTitle>
+
+<div class="auth-wrap">
+    <div class="card auth-card shadow-sm">
+        <div class="card-body p-4 text-center">
+            <div class="auth-badge" aria-hidden="true">⚠️</div>
+            <h1 class="h4">Something went wrong</h1>
+            <p class="text-secondary">
+                We could not complete your request. Please try again in a moment.
+                If the problem continues, contact the system administrator and quote the reference below.
+            </p>
+            @if (!string.IsNullOrEmpty(requestId))
+            {
+                <p class="small mb-3">Reference: <code>@requestId</code></p>
+            }
+            <a class="btn btn-primary" href="">Back to the dashboard</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? requestId;
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Only a correlation id is shown. The exception itself is logged by the exception handler.
+    protected override void OnInitialized() => requestId = Activity.Current?.TraceId.ToString() ?? HttpContext?.TraceIdentifier;
+}
