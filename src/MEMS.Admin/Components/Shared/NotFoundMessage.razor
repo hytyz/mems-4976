@@ -1,0 +1,14 @@
+@* Also used when a record does not exist or belongs to another municipality: the two cases look the same. *@
+<div class="text-center py-5">
+    <div class="display-6 mb-2" aria-hidden="true">🔎</div>
+    <h1 class="h4">@Title</h1>
+    <p class="text-secondary">@Message</p>
+    <a class="btn btn-primary" href="@BackHref">@BackText</a>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Page not found";
+    [Parameter] public string Message { get; set; } = "The page or record you are looking for does not exist, or you do not have access to it.";
+    [Parameter] public string BackHref { get; set; } = "";
+    [Parameter] public string BackText { get; set; } = "Back to the dashboard";
+}

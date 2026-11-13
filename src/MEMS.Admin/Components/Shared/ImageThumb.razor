@@ -1,0 +1,17 @@
+@if (Url is not null)
+{
+    <img src="@Url" alt="@Alt" class="@CssClass" loading="lazy" />
+}
+else
+{
+    <span class="@($"{CssClass} thumb-initials")" aria-hidden="true">@Initials</span>
+}
+
+@code {
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public string Alt { get; set; } = string.Empty;
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string CssClass { get; set; } = "thumb";
+
+    private string Initials => string.Concat(Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpperInvariant(p[0])));
+}

@@ -1,0 +1,105 @@
+@page "/account/login"
+@using System.ComponentModel.DataAnnotations
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign in · MEMS Admin</PageTitle>
+
+<div class="auth-wrap">
+    <div class="card auth-card shadow-sm">
+        <div class="card-body p-4">
+            <div class="auth-badge" aria-hidden="true">🗳️</div>
+            <h1 class="h4 text-center mb-1">Administrator sign in</h1>
+            <p class="text-center text-secondary small mb-4">Municipal Elections Management System</p>
+
+            @if (errorMessage is not null)
+            {
+                <div class="alert alert-danger" role="alert">@errorMessage</div>
+            }
+
+            <EditForm Model="Input" method="post" OnValidSubmit="SignInAsync" FormName="login" Enhance="false">
+                <DataAnnotationsValidator />
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="Input.UserName" id="userName" class="form-control" autocomplete="username" placeholder="username" />
+                    <label for="userName">Username</label>
+                    <ValidationMessage For="() => Input.UserName" class="text-danger small" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText type="password" @bind-Value="Input.Password" id="password" class="form-control" autocomplete="current-password" placeholder="password" />
+                    <label for="password">Password</label>
+                    <ValidationMessage For="() => Input.Password" class="text-danger small" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100">Sign in</button>
+            </EditForm>
+
+            <p class="text-secondary small mt-4 mb-0 text-center">
+                There is no self-registration. Accounts are created by a Super Admin.
+            </p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task SignInAsync()
+    {
+        // The same message for an unknown user and a wrong password, so usernames cannot be probed.
+        const string failure = "The username or password is incorrect.";
+
+        var user = await UserManager.FindByNameAsync(Input.UserName.Trim());
+        if (user is null)
+        {
+            Logger.LogWarning("Admin sign-in failed for unknown user {UserName}", Input.UserName);
+            errorMessage = failure;
+            return;
+        }
+
+        // A Municipality Administrator must be assigned to exactly one existing municipality.
+        if (await UserManager.IsInRoleAsync(user, AppRoles.MunicipalityAdmin) && user.MunicipalityId is null)
+        {
+            Logger.LogWarning("Admin sign-in refused: {UserName} has no municipality", user.UserName);
+            errorMessage = "This account is not assigned to a municipality. Ask a Super Admin for help.";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(user, Input.Password, isPersistent: false, lockoutOnFailure: true);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("Administrator {UserName} signed in", user.UserName);
+            Navigation.NavigateTo(NavigationExtensions.SafeReturnPath(ReturnUrl), forceLoad: true);
+            return;
+        }
+
+        if (result.IsLockedOut)
+        {
+            Logger.LogWarning("Admin sign-in refused: {UserName} is locked out", user.UserName);
+            errorMessage = "This account is temporarily locked after too many failed attempts. Try again in a few minutes.";
+            return;
+        }
+
+        Logger.LogWarning("Admin sign-in failed for {UserName}", user.UserName);
+        errorMessage = failure;
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Username is required.")]
+        [StringLength(50, ErrorMessage = "Username cannot exceed 50 characters.")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
+        [StringLength(100, ErrorMessage = "Password cannot exceed 100 characters.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

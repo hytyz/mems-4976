@@ -1,0 +1,40 @@
+@* Shows errors returned by the service layer (duplicate slug, position from another tenant, ...)
+   next to the matching fields, alongside the client-side DataAnnotations validation. *@
+@code {
+    private ValidationMessageStore? store;
+
+    [CascadingParameter]
+    private EditContext? CurrentEditContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (CurrentEditContext is null)
+        {
+            throw new InvalidOperationException($"{nameof(ServerValidation)} must be placed inside an EditForm.");
+        }
+
+        store = new ValidationMessageStore(CurrentEditContext);
+        CurrentEditContext.OnValidationRequested += (_, _) => store.Clear();
+        CurrentEditContext.OnFieldChanged += (_, e) => store.Clear(e.FieldIdentifier);
+    }
+
+    public void Display(IReadOnlyDictionary<string, string[]> errors)
+    {
+        if (store is null || CurrentEditContext is null)
+        {
+            return;
+        }
+
+        store.Clear();
+        foreach (var (field, messages) in errors)
+        {
+            // Unknown or empty field names still show up in the ValidationSummary.
+            var identifier = string.IsNullOrEmpty(field) || CurrentEditContext.Model.GetType().GetProperty(field) is null
+                ? new FieldIdentifier(CurrentEditContext.Model, string.Empty)
+                : CurrentEditContext.Field(field);
+            store.Add(identifier, messages);
+        }
+
+        CurrentEditContext.NotifyValidationStateChanged();
+    }
+}

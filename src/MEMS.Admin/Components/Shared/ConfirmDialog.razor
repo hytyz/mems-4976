@@ -1,0 +1,48 @@
+@if (Visible)
+{
+    <div class="modal d-block confirm-backdrop" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="confirm-title">@Title</h2>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="CancelAsync" disabled="@busy"></button>
+                </div>
+                <div class="modal-body">@ChildContent</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelAsync" disabled="@busy">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmAsync" disabled="@busy">
+                        @(busy ? "Working…" : ConfirmText)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool busy;
+
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "Are you sure?";
+    [Parameter] public string ConfirmText { get; set; } = "Delete";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    private async Task CancelAsync() => await VisibleChanged.InvokeAsync(false);
+
+    private async Task ConfirmAsync()
+    {
+        busy = true;
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+
+        await VisibleChanged.InvokeAsync(false);
+    }
+}
