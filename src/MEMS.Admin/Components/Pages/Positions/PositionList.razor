@@ -1,0 +1,134 @@
+@page "/positions"
+@inject IPositionService Positions
+@inject IMunicipalityService Municipalities
+@inject FlashService Flash
+
+<PageTitle>Positions · MEMS Admin</PageTitle>
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h3 mb-1">Positions</h1>
+        <p class="text-secondary mb-0">Offices on the ballot, such as Mayor, Councillor and School Trustee.</p>
+    </div>
+    <a class="btn btn-primary" href="@($"positions/create{(MunicipalityId is int selected ? $"?municipalityId={selected}" : "")}")">+ New position</a>
+</div>
+
+@if (isSuperAdmin)
+{
+    <div class="filter-bar mb-3">
+        <label class="form-label small text-secondary mb-1" for="municipalityFilter">Municipality</label>
+        <select id="municipalityFilter" class="form-select" style="max-width: 20rem" value="@MunicipalityId" @onchange="FilterChanged">
+            <option value="">All municipalities</option>
+            @foreach (var m in municipalities)
+            {
+                <option value="@m.Id">@m.Name</option>
+            }
+        </select>
+    </div>
+}
+
+@if (positions is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else if (Visible.Count == 0)
+{
+    <div class="alert alert-info">No positions yet. Create one to start adding candidates.</div>
+}
+else
+{
+    <div class="table-card table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Position</th>
+                    @if (isSuperAdmin)
+                    {
+                        <th>Municipality</th>
+                    }
+                    <th class="text-end">Seats</th>
+                    <th class="text-end">Candidates</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Visible)
+                {
+                    <tr>
+                        <td class="fw-semibold">@p.Name</td>
+                        @if (isSuperAdmin)
+                        {
+                            <td>@p.MunicipalityName</td>
+                        }
+                        <td class="text-end">@p.SeatsAvailable</td>
+                        <td class="text-end">@p.CandidateCount</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"positions/{p.Id}")">Details</a>
+                            <a class="btn btn-sm btn-outline-primary" href="@($"positions/{p.Id}/edit")">Edit</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = p">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmDialog Visible="pendingDelete is not null" VisibleChanged="v => { if (!v) pendingDelete = null; }"
+               Title="Delete position?" ConfirmText="Delete position" OnConfirm="DeleteAsync">
+    <p><strong>@pendingDelete?.Name</strong> (@pendingDelete?.MunicipalityName) will be deleted.</p>
+    @if (pendingDelete?.CandidateCount > 0)
+    {
+        <p class="text-danger mb-0">Its @pendingDelete.CandidateCount candidate(s) will be deleted as well.</p>
+    }
+</ConfirmDialog>
+
+@code {
+    private List<PositionDto>? positions;
+    private List<MunicipalityDto> municipalities = [];
+    private PositionDto? pendingDelete;
+    private bool isSuperAdmin;
+
+    [SupplyParameterFromQuery]
+    public int? MunicipalityId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private List<PositionDto> Visible =>
+        positions?.Where(p => MunicipalityId is null || p.MunicipalityId == MunicipalityId).ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+        municipalities = await Municipalities.ListAsync();
+        positions = await Positions.ListAsync();
+    }
+
+    private void FilterChanged(ChangeEventArgs e)
+    {
+        int? id = int.TryParse(e.Value?.ToString(), out int value) ? value : null;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("municipalityId", id));
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (pendingDelete is not { } target)
+        {
+            return;
+        }
+
+        var result = await Positions.DeleteAsync(target.Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{target.Name} ({target.MunicipalityName}) was deleted.");
+            positions = await Positions.ListAsync();
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The position could not be deleted.");
+        }
+    }
+}

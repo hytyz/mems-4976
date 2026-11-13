@@ -1,0 +1,222 @@
+@page "/candidates/create"
+@page "/candidates/{Id:int}/edit"
+@inject ICandidateService Candidates
+@inject IPositionService Positions
+@inject NavigationManager Navigation
+@inject FlashService Flash
+
+<PageTitle>@(IsEdit ? "Edit candidate" : "New candidate") · MEMS Admin</PageTitle>
+
+@if (notFound)
+{
+    <NotFoundMessage Title="Candidate not found" BackHref="candidates" BackText="Back to candidates" />
+}
+else if (input is not null)
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="candidates">Candidates</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@(IsEdit ? existing!.Name : "New")</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">@(IsEdit ? $"Edit {existing!.Name}" : "New candidate")</h1>
+
+    @if (positions.Count == 0)
+    {
+        <div class="alert alert-warning">There are no positions yet. <a href="positions/create">Create a position</a> first.</div>
+    }
+    else
+    {
+        <EditForm Model="input" OnValidSubmit="SaveAsync" FormName="candidate" class="card form-card shadow-sm">
+            <div class="card-body p-4">
+                <DataAnnotationsValidator />
+                <ServerValidation @ref="serverValidation" />
+                <ValidationSummary class="alert alert-danger py-2 small" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="name">Name</label>
+                        <InputText id="name" class="form-control" @bind-Value="input.Name" />
+                        <ValidationMessage For="() => input.Name" class="text-danger small" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="position">Position</label>
+                        <InputSelect id="position" class="form-select" @bind-Value="input.PositionId">
+                            <option value="">Choose a position…</option>
+                            @foreach (var group in positions.GroupBy(p => p.MunicipalityName))
+                            {
+                                <optgroup label="@group.Key">
+                                    @foreach (var p in group)
+                                    {
+                                        <option value="@p.Id">@p.Name (@p.SeatsAvailable seat@(p.SeatsAvailable == 1 ? "" : "s"))</option>
+                                    }
+                                </optgroup>
+                            }
+                        </InputSelect>
+                        @if (IsEdit)
+                        {
+                            <div class="form-text">A candidate can move to another position in @existing!.MunicipalityName only.</div>
+                        }
+                        <ValidationMessage For="() => input.PositionId" class="text-danger small" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="profile">Biography</label>
+                        <InputTextArea id="profile" class="form-control" rows="4" @bind-Value="input.Profile" />
+                        <div class="form-text">@(input.Profile?.Length ?? 0) / 2000 characters</div>
+                        <ValidationMessage For="() => input.Profile" class="text-danger small" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">Email</label>
+                        <InputText id="email" type="email" class="form-control" @bind-Value="input.Email" />
+                        <ValidationMessage For="() => input.Email" class="text-danger small" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="website">Website</label>
+                        <InputText id="website" type="url" class="form-control" @bind-Value="input.Website" placeholder="https://" />
+                        <ValidationMessage For="() => input.Website" class="text-danger small" />
+                    </div>
+                    <div class="col-12"><ImagePicker @ref="photoPicker" Id="photo" Label="Photograph" CurrentUrl="@existing?.PhotoImageId.ImageUrl()" /></div>
+                </div>
+
+                <details class="mt-4" open="@HasLinks">
+                    <summary class="fw-semibold mb-2">Video and social media links</summary>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="video">Video URL</label>
+                            <InputText id="video" type="url" class="form-control" @bind-Value="input.VideoUrl" placeholder="https://" />
+                            <ValidationMessage For="() => input.VideoUrl" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="x">X (Twitter) URL</label>
+                            <InputText id="x" type="url" class="form-control" @bind-Value="input.SocialX" placeholder="https://" />
+                            <ValidationMessage For="() => input.SocialX" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="facebook">Facebook URL</label>
+                            <InputText id="facebook" type="url" class="form-control" @bind-Value="input.SocialFacebook" placeholder="https://" />
+                            <ValidationMessage For="() => input.SocialFacebook" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="instagram">Instagram URL</label>
+                            <InputText id="instagram" type="url" class="form-control" @bind-Value="input.SocialInstagram" placeholder="https://" />
+                            <ValidationMessage For="() => input.SocialInstagram" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="linkedin">LinkedIn URL</label>
+                            <InputText id="linkedin" type="url" class="form-control" @bind-Value="input.SocialLinkedIn" placeholder="https://" />
+                            <ValidationMessage For="() => input.SocialLinkedIn" class="text-danger small" />
+                        </div>
+                    </div>
+                </details>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2 bg-transparent">
+                <a class="btn btn-outline-secondary" href="@(IsEdit ? $"candidates/{Id}" : "candidates")">Cancel</a>
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : IsEdit ? "Save changes" : "Create candidate")</button>
+            </div>
+        </EditForm>
+    }
+}
+
+@code {
+    private CandidateInput? input;
+    private CandidateDto? existing;
+    private List<PositionDto> positions = [];
+    private ServerValidation? serverValidation;
+    private ImagePicker? photoPicker;
+    private bool saving;
+    private bool notFound;
+
+    [Parameter] public int? Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "positionId")]
+    public int? PreselectedPositionId { get; set; }
+
+    private bool IsEdit => Id is not null;
+
+    private bool HasLinks => input is not null &&
+        (input.VideoUrl ?? input.SocialX ?? input.SocialFacebook ?? input.SocialInstagram ?? input.SocialLinkedIn) is not null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Only positions inside the administrator's tenant boundary are offered.
+        positions = await Positions.ListAsync();
+
+        if (!IsEdit)
+        {
+            input = new CandidateInput
+            {
+                PositionId = positions.FirstOrDefault(p => p.Id == PreselectedPositionId)?.Id
+            };
+            return;
+        }
+
+        existing = await Candidates.GetAsync(Id!.Value);
+        if (existing is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        positions = positions.Where(p => p.MunicipalityId == existing.MunicipalityId).ToList();
+        input = new CandidateInput
+        {
+            Name = existing.Name,
+            Profile = existing.Profile,
+            Email = existing.Email,
+            Website = existing.Website,
+            VideoUrl = existing.VideoUrl,
+            SocialX = existing.SocialX,
+            SocialFacebook = existing.SocialFacebook,
+            SocialInstagram = existing.SocialInstagram,
+            SocialLinkedIn = existing.SocialLinkedIn,
+            PositionId = existing.PositionId
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (photoPicker?.HasError == true)
+        {
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var result = IsEdit
+                ? await Candidates.UpdateAsync(Id!.Value, input!)
+                : await Candidates.CreateAsync(input!);
+
+            if (!result.IsSuccess)
+            {
+                serverValidation?.Display(result.Status is ResultStatus.Invalid or ResultStatus.Conflict
+                    ? result.Errors
+                    : new Dictionary<string, string[]> { [string.Empty] = [result.Message ?? "The candidate could not be saved."] });
+                return;
+            }
+
+            var saved = result.Value!;
+            if (photoPicker?.Content is { } content)
+            {
+                var upload = await Candidates.SetPhotoAsync(saved.Id, content);
+                if (!upload.IsSuccess)
+                {
+                    Flash.Error($"{saved.Name} was saved, but the photograph was not: {upload.Errors.Values.SelectMany(e => e).FirstOrDefault() ?? upload.Message}");
+                    Navigation.NavigateTo($"candidates/{saved.Id}/edit");
+                    return;
+                }
+            }
+            else if (photoPicker?.Remove == true)
+            {
+                await Candidates.RemovePhotoAsync(saved.Id);
+            }
+
+            Flash.Success(IsEdit ? $"{saved.Name} was updated." : $"{saved.Name} was added as a candidate for {saved.PositionName}.");
+            Navigation.NavigateTo($"candidates/{saved.Id}");
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

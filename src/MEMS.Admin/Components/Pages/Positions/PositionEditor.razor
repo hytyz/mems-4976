@@ -1,0 +1,157 @@
+@page "/positions/create"
+@page "/positions/{Id:int}/edit"
+@inject IPositionService Positions
+@inject IMunicipalityService Municipalities
+@inject NavigationManager Navigation
+@inject FlashService Flash
+
+<PageTitle>@(IsEdit ? "Edit position" : "New position") · MEMS Admin</PageTitle>
+
+@if (notFound)
+{
+    <NotFoundMessage Title="Position not found" BackHref="positions" BackText="Back to positions" />
+}
+else if (input is not null)
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="positions">Positions</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@(IsEdit ? existing!.Name : "New")</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">@(IsEdit ? $"Edit {existing!.Name}" : "New position")</h1>
+
+    @if (municipalities.Count == 0)
+    {
+        <div class="alert alert-warning">Create a municipality before adding positions.</div>
+    }
+    else
+    {
+        <EditForm Model="input" OnValidSubmit="SaveAsync" FormName="position" class="card form-card shadow-sm" style="max-width: 40rem">
+            <div class="card-body p-4">
+                <DataAnnotationsValidator />
+                <ServerValidation @ref="serverValidation" />
+                <ValidationSummary class="alert alert-danger py-2 small" />
+
+                <div class="mb-3">
+                    <label class="form-label" for="municipality">Municipality</label>
+                    @if (IsEdit || municipalities.Count == 1)
+                    {
+                        <input id="municipality" class="form-control" value="@MunicipalityName" disabled />
+                        @if (IsEdit)
+                        {
+                            <div class="form-text">A position stays with the municipality it was created in.</div>
+                        }
+                    }
+                    else
+                    {
+                        <select id="municipality" class="form-select" @bind="municipalityId">
+                            <option value="0">Choose a municipality…</option>
+                            @foreach (var m in municipalities)
+                            {
+                                <option value="@m.Id">@m.Name</option>
+                            }
+                        </select>
+                        @if (municipalityError)
+                        {
+                            <div class="text-danger small">Choose a municipality.</div>
+                        }
+                    }
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="name">Name</label>
+                    <InputText id="name" class="form-control" @bind-Value="input.Name" placeholder="e.g. Councillor" />
+                    <ValidationMessage For="() => input.Name" class="text-danger small" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="seats">Seats available</label>
+                    <InputNumber id="seats" class="form-control" style="max-width: 10rem" @bind-Value="input.SeatsAvailable" min="1" max="100" />
+                    <div class="form-text">How many people are elected to this position. Voters may pick up to this many.</div>
+                    <ValidationMessage For="() => input.SeatsAvailable" class="text-danger small" />
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2 bg-transparent">
+                <a class="btn btn-outline-secondary" href="@(IsEdit ? $"positions/{Id}" : "positions")">Cancel</a>
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : IsEdit ? "Save changes" : "Create position")</button>
+            </div>
+        </EditForm>
+    }
+}
+
+@code {
+    private PositionInput? input;
+    private PositionDto? existing;
+    private List<MunicipalityDto> municipalities = [];
+    private ServerValidation? serverValidation;
+    private int municipalityId;
+    private bool municipalityError;
+    private bool saving;
+    private bool notFound;
+
+    [Parameter] public int? Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "municipalityId")]
+    public int? PreselectedMunicipalityId { get; set; }
+
+    private bool IsEdit => Id is not null;
+
+    private string MunicipalityName =>
+        municipalities.FirstOrDefault(m => m.Id == municipalityId)?.Name ?? existing?.MunicipalityName ?? string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Only municipalities inside the administrator's tenant boundary are offered.
+        municipalities = await Municipalities.ListAsync();
+
+        if (!IsEdit)
+        {
+            input = new PositionInput();
+            municipalityId = municipalities.Count == 1
+                ? municipalities[0].Id
+                : municipalities.FirstOrDefault(m => m.Id == PreselectedMunicipalityId)?.Id ?? 0;
+            return;
+        }
+
+        existing = await Positions.GetAsync(Id!.Value);
+        if (existing is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        municipalityId = existing.MunicipalityId;
+        input = new PositionInput { Name = existing.Name, SeatsAvailable = existing.SeatsAvailable };
+    }
+
+    private async Task SaveAsync()
+    {
+        municipalityError = !IsEdit && municipalityId == 0;
+        if (municipalityError)
+        {
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var result = IsEdit
+                ? await Positions.UpdateAsync(Id!.Value, input!)
+                : await Positions.CreateAsync(municipalityId, input!);
+
+            if (result.IsSuccess)
+            {
+                Flash.Success(IsEdit ? $"{result.Value!.Name} was updated." : $"{result.Value!.Name} was created in {result.Value.MunicipalityName}.");
+                Navigation.NavigateTo($"positions/{result.Value.Id}");
+                return;
+            }
+
+            serverValidation?.Display(result.Status is ResultStatus.Invalid or ResultStatus.Conflict
+                ? result.Errors
+                : new Dictionary<string, string[]> { [string.Empty] = [result.Message ?? "The position could not be saved."] });
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

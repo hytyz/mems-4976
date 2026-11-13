@@ -1,0 +1,166 @@
+@page "/candidates"
+@inject ICandidateService Candidates
+@inject IPositionService Positions
+@inject IMunicipalityService Municipalities
+@inject FlashService Flash
+@inject NavigationManager Navigation
+
+<PageTitle>Candidates · MEMS Admin</PageTitle>
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h3 mb-1">Candidates</h1>
+        <p class="text-secondary mb-0">@(Visible.Count) of @(candidates?.Count ?? 0) shown</p>
+    </div>
+    <a class="btn btn-primary" href="@($"candidates/create{(PositionId is int selected ? $"?positionId={selected}" : "")}")">+ New candidate</a>
+</div>
+
+<div class="filter-bar mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-md">
+            <label class="form-label small text-secondary mb-1" for="search">Search by name</label>
+            <input id="search" type="search" class="form-control" placeholder="Name…" value="@search"
+                   @oninput="e => search = e.Value?.ToString()" />
+        </div>
+        @if (isSuperAdmin)
+        {
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-secondary mb-1" for="municipalityFilter">Municipality</label>
+                <select id="municipalityFilter" class="form-select" value="@MunicipalityId" @onchange="e => SetFilter(e, isMunicipality: true)">
+                    <option value="">All</option>
+                    @foreach (var m in municipalities)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+            </div>
+        }
+        <div class="col-6 col-md-3">
+            <label class="form-label small text-secondary mb-1" for="positionFilter">Position</label>
+            <select id="positionFilter" class="form-select" value="@PositionId" @onchange="e => SetFilter(e, isMunicipality: false)">
+                <option value="">All</option>
+                @foreach (var p in FilterPositions)
+                {
+                    <option value="@p.Id">@(isSuperAdmin && MunicipalityId is null ? $"{p.MunicipalityName} — {p.Name}" : p.Name)</option>
+                }
+            </select>
+        </div>
+    </div>
+</div>
+
+@if (candidates is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else if (Visible.Count == 0)
+{
+    <div class="alert alert-info">No candidates match these filters.</div>
+}
+else
+{
+    <div class="table-card table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Position</th>
+                    @if (isSuperAdmin)
+                    {
+                        <th class="d-none d-md-table-cell">Municipality</th>
+                    }
+                    <th class="d-none d-lg-table-cell">Email</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Visible)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <ImageThumb Url="@c.PhotoImageId.ImageUrl()" Name="@c.Name" Alt="" CssClass="thumb thumb-sm rounded-circle" />
+                                <span class="fw-semibold">@c.Name</span>
+                            </div>
+                        </td>
+                        <td>@c.PositionName</td>
+                        @if (isSuperAdmin)
+                        {
+                            <td class="d-none d-md-table-cell">@c.MunicipalityName</td>
+                        }
+                        <td class="d-none d-lg-table-cell">@c.Email</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"candidates/{c.Id}")">Details</a>
+                            <a class="btn btn-sm btn-outline-primary" href="@($"candidates/{c.Id}/edit")">Edit</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = c">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmDialog Visible="pendingDelete is not null" VisibleChanged="v => { if (!v) pendingDelete = null; }"
+               Title="Delete candidate?" ConfirmText="Delete candidate" OnConfirm="DeleteAsync">
+    <p class="mb-0"><strong>@pendingDelete?.Name</strong> (@pendingDelete?.PositionName, @pendingDelete?.MunicipalityName) will be deleted, including their photograph.</p>
+</ConfirmDialog>
+
+@code {
+    private List<CandidateDto>? candidates;
+    private List<PositionDto> positions = [];
+    private List<MunicipalityDto> municipalities = [];
+    private CandidateDto? pendingDelete;
+    private string? search;
+    private bool isSuperAdmin;
+
+    [SupplyParameterFromQuery] public int? MunicipalityId { get; set; }
+    [SupplyParameterFromQuery] public int? PositionId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private IEnumerable<PositionDto> FilterPositions =>
+        positions.Where(p => MunicipalityId is null || p.MunicipalityId == MunicipalityId);
+
+    private List<CandidateDto> Visible => candidates?
+        .Where(c => MunicipalityId is null || c.MunicipalityId == MunicipalityId)
+        .Where(c => PositionId is null || c.PositionId == PositionId)
+        .Where(c => string.IsNullOrWhiteSpace(search) || c.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+        municipalities = await Municipalities.ListAsync();
+        positions = await Positions.ListAsync();
+        candidates = await Candidates.ListAsync();
+    }
+
+    private void SetFilter(ChangeEventArgs e, bool isMunicipality)
+    {
+        int? id = int.TryParse(e.Value?.ToString(), out int value) ? value : null;
+        var query = isMunicipality
+            ? new Dictionary<string, object?> { ["municipalityId"] = id, ["positionId"] = null }
+            : new Dictionary<string, object?> { ["positionId"] = id };
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(query));
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (pendingDelete is not { } target)
+        {
+            return;
+        }
+
+        var result = await Candidates.DeleteAsync(target.Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{target.Name} was deleted.");
+            candidates = await Candidates.ListAsync();
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The candidate could not be deleted.");
+        }
+    }
+}

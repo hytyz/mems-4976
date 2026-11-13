@@ -1,0 +1,103 @@
+@page "/positions/{Id:int}"
+@inject IPositionService Positions
+@inject ICandidateService Candidates
+@inject FlashService Flash
+@inject NavigationManager Navigation
+
+<PageTitle>@(position?.Name ?? "Position") · MEMS Admin</PageTitle>
+
+@if (notFound)
+{
+    <NotFoundMessage Title="Position not found" BackHref="positions" BackText="Back to positions" />
+}
+else if (position is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="positions">Positions</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@position.Name</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">@position.Name</h1>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="meta-pill text-decoration-none" href="@($"municipalities/{position.MunicipalityId}")">🏛️ @position.MunicipalityName</a>
+                <span class="meta-pill">🪑 @position.SeatsAvailable seat(s)</span>
+                <span class="meta-pill">🧑‍💼 @position.CandidateCount candidate(s)</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="@($"positions/{Id}/edit")">Edit</a>
+            <button type="button" class="btn btn-outline-danger" @onclick="() => confirmDelete = true">Delete</button>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 section-title mb-0">Candidates</h2>
+        <a class="btn btn-sm btn-outline-primary" href="@($"candidates/create?positionId={Id}")">+ Add candidate</a>
+    </div>
+    @if (candidates.Count == 0)
+    {
+        <p class="text-secondary">No candidates are running for this position yet.</p>
+    }
+    else
+    {
+        <div class="list-group">
+            @foreach (var c in candidates)
+            {
+                <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="@($"candidates/{c.Id}")">
+                    <ImageThumb Url="@c.PhotoImageId.ImageUrl()" Name="@c.Name" Alt="" CssClass="thumb thumb-sm rounded-circle" />
+                    <span class="fw-semibold">@c.Name</span>
+                </a>
+            }
+        </div>
+    }
+
+    <ConfirmDialog @bind-Visible="confirmDelete" Title="Delete position?" ConfirmText="Delete position" OnConfirm="DeleteAsync">
+        <p><strong>@position.Name</strong> (@position.MunicipalityName) will be deleted.</p>
+        @if (position.CandidateCount > 0)
+        {
+            <p class="text-danger mb-0">Its @position.CandidateCount candidate(s) will be deleted as well.</p>
+        }
+    </ConfirmDialog>
+}
+
+@code {
+    private PositionDto? position;
+    private List<CandidateDto> candidates = [];
+    private bool notFound;
+    private bool confirmDelete;
+
+    [Parameter] public int Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        position = await Positions.GetAsync(Id);
+        notFound = position is null;
+        if (!notFound)
+        {
+            var page = await Candidates.SearchAsync(new CandidateQuery { PositionId = Id, PageSize = CandidateQuery.MaxPageSize });
+            candidates = page.Items;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var result = await Positions.DeleteAsync(Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{position!.Name} was deleted.");
+            Navigation.NavigateTo("positions");
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The position could not be deleted.");
+        }
+    }
+}

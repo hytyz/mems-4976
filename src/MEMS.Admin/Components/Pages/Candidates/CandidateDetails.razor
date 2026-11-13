@@ -1,0 +1,113 @@
+@page "/candidates/{Id:int}"
+@inject ICandidateService Candidates
+@inject FlashService Flash
+@inject NavigationManager Navigation
+
+<PageTitle>@(candidate?.Name ?? "Candidate") · MEMS Admin</PageTitle>
+
+@if (notFound)
+{
+    <NotFoundMessage Title="Candidate not found" BackHref="candidates" BackText="Back to candidates" />
+}
+else if (candidate is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="candidates">Candidates</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@candidate.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <ImageThumb Url="@candidate.PhotoImageId.ImageUrl()" Name="@candidate.Name" Alt="@($"Photograph of {candidate.Name}")" CssClass="candidate-portrait" />
+        </div>
+        <div class="col-md-8">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h1 class="h3 mb-2">@candidate.Name</h1>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a class="meta-pill text-decoration-none" href="@($"positions/{candidate.PositionId}")">🪑 @candidate.PositionName</a>
+                        <a class="meta-pill text-decoration-none" href="@($"municipalities/{candidate.MunicipalityId}")">🏛️ @candidate.MunicipalityName</a>
+                        <span class="meta-pill">Added @candidate.DateCreated.ToLocalTime().ToString("MMM d, yyyy")</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-primary" href="@($"candidates/{Id}/edit")">Edit</a>
+                    <button type="button" class="btn btn-outline-danger" @onclick="() => confirmDelete = true">Delete</button>
+                </div>
+            </div>
+
+            <h2 class="h6 text-uppercase text-secondary">Biography</h2>
+            <p style="white-space: pre-line">@(candidate.Profile ?? "No biography provided.")</p>
+
+            <dl class="row small">
+                <dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9">@if (candidate.Email is { } email) { <a href="@($"mailto:{email}")">@email</a> } else { <span class="text-secondary">—</span> }</dd>
+                @foreach (var (label, url) in Links)
+                {
+                    <dt class="col-sm-3">@label</dt>
+                    <dd class="col-sm-9 text-break">@if (url is not null) { <a href="@url" target="_blank" rel="noopener noreferrer">@url</a> } else { <span class="text-secondary">—</span> }</dd>
+                }
+            </dl>
+
+            @if (candidate.Endorsements.Count > 0)
+            {
+                <h2 class="h6 text-uppercase text-secondary mt-4">Endorsements</h2>
+                @foreach (var e in candidate.Endorsements)
+                {
+                    <blockquote class="blockquote border-start border-3 ps-3">
+                        <p class="mb-1">“@e.Text”</p>
+                        <footer class="blockquote-footer">@e.EndorserName @(e.Organization is null ? "" : $"({e.Organization})")</footer>
+                    </blockquote>
+                }
+            }
+        </div>
+    </div>
+
+    <ConfirmDialog @bind-Visible="confirmDelete" Title="Delete candidate?" ConfirmText="Delete candidate" OnConfirm="DeleteAsync">
+        <p class="mb-0"><strong>@candidate.Name</strong> will be deleted, including their photograph.</p>
+    </ConfirmDialog>
+}
+
+@code {
+    private CandidateDto? candidate;
+    private bool notFound;
+    private bool confirmDelete;
+
+    [Parameter] public int Id { get; set; }
+
+    private IEnumerable<(string Label, string? Url)> Links =>
+    [
+        ("Website", candidate!.Website),
+        ("Video", candidate.VideoUrl),
+        ("X", candidate.SocialX),
+        ("Facebook", candidate.SocialFacebook),
+        ("Instagram", candidate.SocialInstagram),
+        ("LinkedIn", candidate.SocialLinkedIn)
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        candidate = await Candidates.GetAsync(Id);
+        notFound = candidate is null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        var result = await Candidates.DeleteAsync(Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{candidate!.Name} was deleted.");
+            Navigation.NavigateTo("candidates");
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The candidate could not be deleted.");
+        }
+    }
+}
