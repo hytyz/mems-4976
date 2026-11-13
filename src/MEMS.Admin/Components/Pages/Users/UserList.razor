@@ -1,0 +1,103 @@
+@page "/users"
+@inject IAdminUserService AdminUsers
+@inject FlashService Flash
+
+<PageTitle>Administrators · MEMS Admin</PageTitle>
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h3 mb-1">Administrators</h1>
+        <p class="text-secondary mb-0">There is no self-registration: every administrator account is created here.</p>
+    </div>
+    <a class="btn btn-primary" href="users/create">+ New administrator</a>
+</div>
+
+@if (users is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <div class="table-card table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Municipality</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in users)
+                {
+                    <tr>
+                        <td class="fw-semibold">
+                            @u.UserName
+                            @if (u.Id == currentUserId)
+                            {
+                                <span class="badge text-bg-secondary ms-1">you</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @(u.Role == AppRoles.SuperAdmin ? "text-bg-primary" : "text-bg-light border")">@AppRoles.DisplayName(u.Role)</span>
+                        </td>
+                        <td>@(u.MunicipalityName ?? "All")</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"users/{u.Id}/reset-password")">Reset password</a>
+                            @if (u.Id != currentUserId)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = u">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmDialog Visible="pendingDelete is not null" VisibleChanged="v => { if (!v) pendingDelete = null; }"
+               Title="Delete administrator?" ConfirmText="Delete account" OnConfirm="DeleteAsync">
+    <p class="mb-0">The account <strong>@pendingDelete?.UserName</strong> will be deleted and signed out everywhere.</p>
+</ConfirmDialog>
+
+@code {
+    private List<AdminUserDto>? users;
+    private AdminUserDto? pendingDelete;
+    private string? currentUserId;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = (await AuthenticationState).User.UserId();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await AdminUsers.ListAsync();
+        users = result.Value ?? [];
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (pendingDelete is not { } target)
+        {
+            return;
+        }
+
+        var result = await AdminUsers.DeleteAsync(target.Id, currentUserId);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"Administrator '{target.UserName}' was deleted.");
+            await LoadAsync();
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The account could not be deleted.");
+        }
+    }
+}

@@ -1,0 +1,109 @@
+@page "/users/create"
+@inject IAdminUserService AdminUsers
+@inject IMunicipalityService Municipalities
+@inject NavigationManager Navigation
+@inject FlashService Flash
+
+<PageTitle>New administrator · MEMS Admin</PageTitle>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="users">Administrators</a></li>
+        <li class="breadcrumb-item active" aria-current="page">New</li>
+    </ol>
+</nav>
+<h1 class="h3 mb-4">New administrator</h1>
+
+<EditForm Model="input" OnValidSubmit="SaveAsync" FormName="admin-user" class="card form-card shadow-sm" style="max-width: 40rem">
+    <div class="card-body p-4">
+        <DataAnnotationsValidator />
+        <ServerValidation @ref="serverValidation" />
+        <ValidationSummary class="alert alert-danger py-2 small" />
+
+        <div class="mb-3">
+            <label class="form-label" for="userName">Username</label>
+            <InputText id="userName" class="form-control" @bind-Value="input.UserName" autocomplete="off" />
+            <ValidationMessage For="() => input.UserName" class="text-danger small" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="role">Role</label>
+            <InputSelect id="role" class="form-select" @bind-Value="input.Role">
+                <option value="@AppRoles.MunicipalityAdmin">@AppRoles.DisplayName(AppRoles.MunicipalityAdmin) — manages one municipality</option>
+                <option value="@AppRoles.SuperAdmin">@AppRoles.DisplayName(AppRoles.SuperAdmin) — manages everything</option>
+            </InputSelect>
+            <ValidationMessage For="() => input.Role" class="text-danger small" />
+        </div>
+        @if (input.Role == AppRoles.MunicipalityAdmin)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="municipality">Municipality</label>
+                <InputSelect id="municipality" class="form-select" @bind-Value="input.MunicipalityId">
+                    <option value="">Choose a municipality…</option>
+                    @foreach (var m in municipalities)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </InputSelect>
+                <div class="form-text">A Municipality Administrator is assigned to exactly one municipality.</div>
+                <ValidationMessage For="() => input.MunicipalityId" class="text-danger small" />
+            </div>
+        }
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="password">Password</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="input.Password" autocomplete="new-password" />
+                <ValidationMessage For="() => input.Password" class="text-danger small" />
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="confirm">Confirm password</label>
+                <InputText id="confirm" type="password" class="form-control" @bind-Value="input.ConfirmPassword" autocomplete="new-password" />
+                <ValidationMessage For="() => input.ConfirmPassword" class="text-danger small" />
+            </div>
+        </div>
+        <div class="form-text">@PasswordRules.Summary</div>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2 bg-transparent">
+        <a class="btn btn-outline-secondary" href="users">Cancel</a>
+        <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Creating…" : "Create administrator")</button>
+    </div>
+</EditForm>
+
+@code {
+    private CreateAdminUserInput input = new();
+    private List<MunicipalityDto> municipalities = [];
+    private ServerValidation? serverValidation;
+    private bool saving;
+
+    [SupplyParameterFromQuery(Name = "municipalityId")]
+    public int? PreselectedMunicipalityId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        municipalities = await Municipalities.ListAsync();
+        input.MunicipalityId = municipalities.FirstOrDefault(m => m.Id == PreselectedMunicipalityId)?.Id;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        try
+        {
+            var result = await AdminUsers.CreateAsync(input);
+            if (result.IsSuccess)
+            {
+                var user = result.Value!;
+                Flash.Success($"Administrator '{user.UserName}' was created ({AppRoles.DisplayName(user.Role)}{(user.MunicipalityName is null ? "" : $", {user.MunicipalityName}")}).");
+                Navigation.NavigateTo("users");
+                return;
+            }
+
+            serverValidation?.Display(result.Status is ResultStatus.Invalid or ResultStatus.Conflict
+                ? result.Errors
+                : new Dictionary<string, string[]> { [string.Empty] = [result.Message ?? "The account could not be created."] });
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

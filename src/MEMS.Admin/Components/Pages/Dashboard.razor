@@ -1,0 +1,116 @@
+@page "/"
+@inject IMunicipalityService Municipalities
+@inject ServiceLinks Links
+
+<PageTitle>Dashboard · MEMS Admin</PageTitle>
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-secondary mb-0">
+            @if (isSuperAdmin)
+            {
+                <span>Signed in as a Super Admin: you manage every municipality.</span>
+            }
+            else
+            {
+                <span>Signed in as a Municipality Administrator: everything here is limited to your municipality.</span>
+            }
+        </p>
+    </div>
+    @if (isSuperAdmin)
+    {
+        <a class="btn btn-primary" href="municipalities/create">+ New municipality</a>
+    }
+</div>
+
+@if (stats is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <a class="card stat-card stat-blue h-100 text-decoration-none" href="municipalities">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div><div class="small text-uppercase opacity-75">Total municipalities</div><div class="display-6 fw-bold">@stats.MunicipalityCount</div></div>
+                    <span class="stat-icon" aria-hidden="true">🏛️</span>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="card stat-card stat-green h-100 text-decoration-none" href="positions">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div><div class="small text-uppercase opacity-75">Total positions</div><div class="display-6 fw-bold">@stats.PositionCount</div></div>
+                    <span class="stat-icon" aria-hidden="true">🪑</span>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="card stat-card stat-amber h-100 text-decoration-none" href="candidates">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div><div class="small text-uppercase opacity-75">Total candidates</div><div class="display-6 fw-bold">@stats.CandidateCount</div></div>
+                    <span class="stat-icon" aria-hidden="true">🧑‍💼</span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="h5 section-title mb-3">@(isSuperAdmin ? "Municipalities" : "Your municipality")</h2>
+    <div class="table-card table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Municipality</th>
+                    <th class="d-none d-md-table-cell">Election date</th>
+                    <th class="text-end">Positions</th>
+                    <th class="text-end">Candidates</th>
+                    <th class="text-end">Public site</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in municipalities)
+                {
+                    <tr>
+                        <td>
+                            <a href="@($"municipalities/{m.Id}")" class="d-flex align-items-center gap-2 text-decoration-none">
+                                <ImageThumb Url="@m.LogoImageId.ImageUrl()" Name="@m.Name" Alt="" CssClass="thumb thumb-sm" />
+                                <span class="fw-semibold">@m.Name</span>
+                            </a>
+                        </td>
+                        <td class="d-none d-md-table-cell">@m.ElectionDate.ToString("MMMM d, yyyy")</td>
+                        <td class="text-end">@m.PositionCount</td>
+                        <td class="text-end">@m.CandidateCount</td>
+                        <td class="text-end">
+                            @if (Links.PublicTenantUrl(m.Slug) is { } url)
+                            {
+                                <a href="@url" target="_blank" rel="noopener">/@m.Slug</a>
+                            }
+                            else
+                            {
+                                <code>/@m.Slug</code>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private DashboardDto? stats;
+    private List<MunicipalityDto> municipalities = [];
+    private bool isSuperAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+        stats = await Municipalities.GetDashboardAsync();
+        municipalities = await Municipalities.ListAsync();
+    }
+}
