@@ -1,0 +1,13 @@
+@page "/{Tenant}"
+@inherits TenantPage
+
+<TenantShell Slug="@Tenant">
+    <TenantOverview Positions="positions" LoadError="@LoadError" />
+</TenantShell>
+
+@code {
+    private List<PositionDto>? positions;
+
+    protected override async Task OnParametersSetAsync() =>
+        await LoadSafelyAsync(async () => positions = await Api.GetPositionsAsync(Slug));
+}

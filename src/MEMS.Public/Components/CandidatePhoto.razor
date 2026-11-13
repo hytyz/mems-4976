@@ -1,0 +1,18 @@
+@inject ApiUrls Urls
+
+@if (Urls.Image(Slug, Candidate.PhotoImageId) is { } src)
+{
+    <img src="@src" alt="@($"Photograph of {Candidate.Name}")" class="@CssClass" loading="lazy" />
+}
+else
+{
+    <div class="@($"{CssClass} candidate-placeholder")" aria-hidden="true">@Initials</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public CandidateDto Candidate { get; set; } = default!;
+    [Parameter, EditorRequired] public string Slug { get; set; } = string.Empty;
+    [Parameter] public string CssClass { get; set; } = "candidate-photo";
+
+    private string Initials => string.Concat(Candidate.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpperInvariant(p[0])));
+}

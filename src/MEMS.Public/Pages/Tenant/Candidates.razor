@@ -1,0 +1,173 @@
+@page "/{Tenant}/candidates"
+@inherits TenantPage
+@inject NavigationManager Navigation
+
+<TenantShell Slug="@Tenant">
+    <PageTitle>Candidates · Municipal Elections</PageTitle>
+
+    <div class="filter-bar mb-3">
+        <form class="row g-2 align-items-end" @onsubmit="ApplySearch" @onsubmit:preventDefault>
+            <div class="col-12 col-md-5">
+                <label class="form-label small text-secondary mb-1" for="search">Search candidates by name</label>
+                <input id="search" type="search" class="form-control" placeholder="Name…" maxlength="100" @bind="searchText" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-secondary mb-1" for="municipality">Municipality</label>
+                <select id="municipality" class="form-select" value="@Slug" @onchange="ChangeMunicipality">
+                    @foreach (var m in municipalities)
+                    {
+                        <option value="@m.Slug">@m.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-secondary mb-1" for="position">Position</label>
+                <select id="position" class="form-select" value="@PositionId" @onchange="ChangePosition">
+                    <option value="">All positions</option>
+                    @foreach (var p in positions)
+                    {
+                        <option value="@p.Id">@p.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+
+    @if (GuideMessage is not null)
+    {
+        <div class="alert alert-warning alert-dismissible" role="alert">
+            @GuideMessage
+            <button type="button" class="btn-close" aria-label="Close" @onclick="() => GuideMessage = null"></button>
+        </div>
+    }
+
+    @if (LoadError is not null)
+    {
+        <div class="alert alert-warning">@LoadError</div>
+    }
+    else if (result is null)
+    {
+        <div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div></div>
+    }
+    else if (result.TotalCount == 0)
+    {
+        <div class="alert alert-info">
+            No candidates match your search.
+            @if (!string.IsNullOrWhiteSpace(Search) || PositionId is not null)
+            {
+                <a class="alert-link" href="@($"{Slug}/candidates")">Clear the filters</a>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-secondary small">@result.TotalCount candidate@(result.TotalCount == 1 ? "" : "s")</p>
+        <div class="row g-3">
+            @foreach (var c in result.Items)
+            {
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="card card-lift h-100 position-relative">
+                        @if (Selections.Any(s => s.CandidateId == c.Id))
+                        {
+                            <span class="in-guide-ribbon">In your guide</span>
+                        }
+                        <a class="text-decoration-none" href="@($"{Slug}/candidates/{c.Id}")" tabindex="-1" aria-hidden="true"><CandidatePhoto Candidate="c" Slug="@Slug" /></a>
+                        <div class="card-body d-flex flex-column">
+                            <span class="badge position-badge align-self-start mb-2">@c.PositionName</span>
+                            <h2 class="h5 mb-1"><a class="text-decoration-none text-body stretched-link-none" href="@($"{Slug}/candidates/{c.Id}")">@c.Name</a></h2>
+                            <p class="small text-secondary flex-grow-1">@Truncate(c.Profile)</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-sm btn-outline-primary" href="@($"{Slug}/candidates/{c.Id}")">Details</a>
+                                <GuideButton Candidate="c" Slug="@Slug" Selections="Selections" OnBlocked="ShowGuideMessage" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (result.TotalPages > 1)
+        {
+            <nav class="mt-4" aria-label="Candidate pages">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <li class="page-item @(result.Page == 1 ? "disabled" : "")"><a class="page-link" href="@PageUrl(result.Page - 1)">Previous</a></li>
+                    @for (int i = 1; i <= result.TotalPages; i++)
+                    {
+                        int pageNumber = i;
+                        <li class="page-item @(pageNumber == result.Page ? "active" : "")"><a class="page-link" href="@PageUrl(pageNumber)">@pageNumber</a></li>
+                    }
+                    <li class="page-item @(result.Page == result.TotalPages ? "disabled" : "")"><a class="page-link" href="@PageUrl(result.Page + 1)">Next</a></li>
+                </ul>
+            </nav>
+        }
+    }
+</TenantShell>
+
+@code {
+    private PagedResult<CandidateDto>? result;
+    private List<PositionDto> positions = [];
+    private List<MunicipalityDto> municipalities = [];
+    private string? searchText;
+    private string? loadedPositionsFor;
+
+    [SupplyParameterFromQuery] public string? Search { get; set; }
+    [SupplyParameterFromQuery] public int? PositionId { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public int? PageNumber { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSafelyAsync(async () => municipalities = await Api.GetMunicipalitiesAsync() ?? []);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        searchText = Search;
+        result = null;
+        await RefreshSelectionsAsync();
+        await LoadSafelyAsync(async () =>
+        {
+            if (loadedPositionsFor != Slug)
+            {
+                positions = await Api.GetPositionsAsync(Slug);
+                loadedPositionsFor = Slug;
+            }
+
+            result = await Api.SearchCandidatesAsync(Slug, new CandidateQuery
+            {
+                Search = Search,
+                PositionId = PositionId,
+                Page = Math.Max(1, PageNumber ?? 1)
+            });
+        });
+    }
+
+    private void ApplySearch() => Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+    {
+        ["search"] = string.IsNullOrWhiteSpace(searchText) ? null : searchText.Trim(),
+        ["page"] = null
+    }));
+
+    private void ChangePosition(ChangeEventArgs e)
+    {
+        int? id = int.TryParse(e.Value?.ToString(), out int value) ? value : null;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?> { ["positionId"] = id, ["page"] = null }));
+    }
+
+    // Filtering by municipality means switching tenant: each municipality's data lives at its own URL.
+    private void ChangeMunicipality(ChangeEventArgs e)
+    {
+        string? slug = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(slug))
+        {
+            string query = string.IsNullOrWhiteSpace(Search) ? "" : $"?search={Uri.EscapeDataString(Search)}";
+            Navigation.NavigateTo($"{slug}/candidates{query}");
+        }
+    }
+
+    private string PageUrl(int page) => Navigation.GetUriWithQueryParameter("page", page);
+
+    private static string? Truncate(string? text) => text is { Length: > 140 } ? text[..137] + "…" : text;
+}

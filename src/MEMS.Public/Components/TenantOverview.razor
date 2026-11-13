@@ -1,0 +1,67 @@
+@* Rendered inside TenantShell, so the tenant's municipality is available as a cascading value. *@
+
+<PageTitle>@Municipality.Name election · Municipal Elections</PageTitle>
+
+<section class="tenant-hero mb-4">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-6 fw-bold mb-2">@Municipality.Name votes on @Municipality.ElectionDate.ToString("MMMM d")</h1>
+            @if (Municipality.Description is not null)
+            {
+                <p class="lead mb-3">@Municipality.Description</p>
+            }
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-light" href="@($"{Municipality.Slug}/candidates")">Browse candidates</a>
+                <a class="btn btn-outline-light" href="@($"{Municipality.Slug}/guide")">Build my voting guide</a>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="hero-stats">
+                <div class="hero-stat"><strong>@DaysText</strong><span>@DaysLabel</span></div>
+                <div class="hero-stat"><strong>@Municipality.PositionCount</strong><span>Positions</span></div>
+                <div class="hero-stat"><strong>@Municipality.CandidateCount</strong><span>Candidates</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<h2 class="h5 section-title mb-3">Positions on the ballot</h2>
+@if (LoadError is not null)
+{
+    <div class="alert alert-warning">@LoadError</div>
+}
+else if (Positions is null)
+{
+    <div class="text-secondary">Loading positions…</div>
+}
+else if (Positions.Count == 0)
+{
+    <p class="text-secondary">No positions have been announced yet.</p>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var p in Positions)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                <a class="card card-lift h-100 text-decoration-none text-body" href="@($"{Municipality.Slug}/candidates?positionId={p.Id}")">
+                    <div class="card-body">
+                        <h3 class="h5 mb-1">@p.Name</h3>
+                        <p class="text-secondary small mb-3">Elect @p.SeatsAvailable · you may choose up to @p.SeatsAvailable</p>
+                        <span class="badge rounded-pill position-badge">@p.CandidateCount candidate@(p.CandidateCount == 1 ? "" : "s")</span>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter] public MunicipalityDto Municipality { get; set; } = default!;
+    [Parameter] public List<PositionDto>? Positions { get; set; }
+    [Parameter] public string? LoadError { get; set; }
+
+    private int DaysAway => Municipality.ElectionDate.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
+    private string DaysText => DaysAway > 0 ? DaysAway.ToString() : DaysAway == 0 ? "Today" : "Held";
+    private string DaysLabel => DaysAway > 0 ? (DaysAway == 1 ? "Day to go" : "Days to go") : DaysAway == 0 ? "Election day" : Municipality.ElectionDate.ToString("MMM d, yyyy");
+}

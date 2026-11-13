@@ -1,0 +1,111 @@
+@page "/{Tenant}/compare"
+@inherits TenantPage
+@inject NavigationManager Navigation
+
+<TenantShell Slug="@Tenant">
+    <PageTitle>Compare candidates · Municipal Elections</PageTitle>
+    <h1 class="h3 mb-3">Compare candidates</h1>
+
+    @if (LoadError is not null)
+    {
+        <div class="alert alert-warning">@LoadError</div>
+    }
+    else
+    {
+        <div class="filter-bar mb-4">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label class="form-label small text-secondary mb-1" for="candidateA">First candidate</label>
+                    <select id="candidateA" class="form-select" value="@IdA" @onchange="SelectA">
+                        <option value="">Choose…</option>
+                        @foreach (var c in all) { <option value="@c.Id">@c.Name (@c.PositionName)</option> }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-secondary mb-1" for="candidateB">Second candidate</label>
+                    <select id="candidateB" class="form-select" value="@IdB" @onchange="SelectB">
+                        <option value="">Choose…</option>
+                        @foreach (var c in all) { <option value="@c.Id">@c.Name (@c.PositionName)</option> }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @if (selected.Count == 0)
+        {
+            <p class="text-secondary">Pick two candidates to see them side by side.</p>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var c in selected)
+                {
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <CandidatePhoto Candidate="c" Slug="@Slug" />
+                            <div class="card-body">
+                                <span class="badge position-badge mb-2">@c.PositionName</span>
+                                <h2 class="h4"><a class="text-decoration-none" href="@($"{Slug}/candidates/{c.Id}")">@c.Name</a></h2>
+                                <p style="white-space: pre-line">@(c.Profile ?? "No biography provided.")</p>
+                                <dl class="row small mb-0">
+                                    <dt class="col-4">Website</dt><dd class="col-8 text-break">@(c.Website ?? "—")</dd>
+                                    <dt class="col-4">Email</dt><dd class="col-8 text-break">@(c.Email ?? "—")</dd>
+                                    <dt class="col-4">Endorsements</dt><dd class="col-8">@(c.Endorsements.Count == 0 ? "—" : string.Join(", ", c.Endorsements.Select(e => e.EndorserName)))</dd>
+                                </dl>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <GuideButton Candidate="c" Slug="@Slug" Selections="Selections" OnBlocked="ShowGuideMessage" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (GuideMessage is not null)
+            {
+                <div class="alert alert-warning mt-3">@GuideMessage</div>
+            }
+        }
+    }
+</TenantShell>
+
+@code {
+    private List<CandidateDto> all = [];
+    private List<CandidateDto> selected = [];
+    private string? loadedFor;
+
+    [SupplyParameterFromQuery] public int? IdA { get; set; }
+    [SupplyParameterFromQuery] public int? IdB { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RefreshSelectionsAsync();
+        await LoadSafelyAsync(async () =>
+        {
+            if (loadedFor != Slug)
+            {
+                all = (await Api.GetAllCandidatesAsync(Slug)).OrderBy(c => c.Name).ToList();
+                loadedFor = Slug;
+            }
+
+            // Full details (with endorsements) for the two chosen candidates.
+            selected = [];
+            foreach (int id in new[] { IdA, IdB }.OfType<int>().Distinct())
+            {
+                if (await Api.GetCandidateAsync(Slug, id) is { } candidate)
+                {
+                    selected.Add(candidate);
+                }
+            }
+        });
+    }
+
+    private void SelectA(ChangeEventArgs e) => Select(e, "idA");
+
+    private void SelectB(ChangeEventArgs e) => Select(e, "idB");
+
+    private void Select(ChangeEventArgs e, string parameter)
+    {
+        int? id = int.TryParse(e.Value?.ToString(), out int value) ? value : null;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter(parameter, id));
+    }
+}

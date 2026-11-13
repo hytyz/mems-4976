@@ -1,0 +1,105 @@
+@page "/{Tenant}/candidates/{Id:int}"
+@inherits TenantPage
+
+<TenantShell Slug="@Tenant">
+    @if (LoadError is not null)
+    {
+        <div class="alert alert-warning">@LoadError</div>
+    }
+    else if (loading)
+    {
+        <div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div></div>
+    }
+    else if (candidate is null)
+    {
+        <PageTitle>Candidate not found · Municipal Elections</PageTitle>
+        <div class="text-center py-5">
+            <h1 class="h4">Candidate not found</h1>
+            <p class="text-secondary">This candidate is not running in this municipality.</p>
+            <a class="btn btn-primary" href="@($"{Slug}/candidates")">Back to candidates</a>
+        </div>
+    }
+    else
+    {
+        <PageTitle>@candidate.Name · Municipal Elections</PageTitle>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="@($"{Slug}/candidates")">Candidates</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@candidate.Name</li>
+            </ol>
+        </nav>
+
+        @if (GuideMessage is not null)
+        {
+            <div class="alert alert-warning" role="alert">@GuideMessage</div>
+        }
+
+        <div class="row g-4">
+            <div class="col-md-5 col-lg-4">
+                <CandidatePhoto Candidate="candidate" Slug="@Slug" CssClass="candidate-portrait" />
+            </div>
+            <div class="col-md-7 col-lg-8">
+                <span class="badge position-badge mb-2">@candidate.PositionName · @candidate.SeatsAvailable seat@(candidate.SeatsAvailable == 1 ? "" : "s")</span>
+                <h1 class="h2 mb-3">@candidate.Name</h1>
+                <div class="mb-4"><GuideButton Candidate="candidate" Slug="@Slug" Selections="Selections" OnBlocked="ShowGuideMessage" CssClass="btn-lg" /></div>
+
+                <h2 class="h6 text-uppercase text-secondary">About</h2>
+                <p style="white-space: pre-line">@(candidate.Profile ?? "This candidate has not provided a biography.")</p>
+
+                @if (Links.Any(l => l.Url is not null) || candidate.Email is not null)
+                {
+                    <h2 class="h6 text-uppercase text-secondary mt-4">Contact and links</h2>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (candidate.Email is { } email)
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"mailto:{email}")">✉️ Email</a>
+                        }
+                        @foreach (var (label, url) in Links.Where(l => l.Url is not null))
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" href="@url" target="_blank" rel="noopener noreferrer">@label</a>
+                        }
+                    </div>
+                }
+
+                @if (candidate.Endorsements.Count > 0)
+                {
+                    <h2 class="h6 text-uppercase text-secondary mt-4">Endorsements</h2>
+                    @foreach (var e in candidate.Endorsements)
+                    {
+                        <blockquote class="blockquote border-start border-3 ps-3">
+                            <p class="mb-1">“@e.Text”</p>
+                            <footer class="blockquote-footer">@e.EndorserName @(e.Organization is null ? "" : $"({e.Organization})")</footer>
+                        </blockquote>
+                    }
+                }
+
+                <a class="btn btn-link px-0 mt-3" href="@($"{Slug}/compare?idA={candidate.Id}")">Compare with another candidate →</a>
+            </div>
+        </div>
+    }
+</TenantShell>
+
+@code {
+    private CandidateDto? candidate;
+    private bool loading = true;
+
+    [Parameter] public int Id { get; set; }
+
+    private IEnumerable<(string Label, string? Url)> Links =>
+    [
+        ("🌐 Website", candidate!.Website),
+        ("▶️ Video", candidate.VideoUrl),
+        ("X", candidate.SocialX),
+        ("Facebook", candidate.SocialFacebook),
+        ("Instagram", candidate.SocialInstagram),
+        ("LinkedIn", candidate.SocialLinkedIn)
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        await RefreshSelectionsAsync();
+        await LoadSafelyAsync(async () => candidate = await Api.GetCandidateAsync(Slug, Id));
+        loading = false;
+    }
+}
