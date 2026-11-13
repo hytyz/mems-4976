@@ -1,0 +1,123 @@
+@page "/municipalities"
+@inject IMunicipalityService Municipalities
+@inject ServiceLinks Links
+@inject FlashService Flash
+
+<PageTitle>Municipalities · MEMS Admin</PageTitle>
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h3 mb-1">@(isSuperAdmin ? "Municipalities" : "Your municipality")</h1>
+        <p class="text-secondary mb-0">Each municipality is a tenant with its own public site at <code>/{slug}</code>.</p>
+    </div>
+    @if (isSuperAdmin)
+    {
+        <a class="btn btn-primary" href="municipalities/create">+ New municipality</a>
+    }
+</div>
+
+@if (municipalities is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else if (municipalities.Count == 0)
+{
+    <div class="alert alert-info">No municipalities yet. Create the first one to get started.</div>
+}
+else
+{
+    <div class="table-card table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Municipality</th>
+                    <th>URL slug</th>
+                    <th class="d-none d-lg-table-cell">Province</th>
+                    <th class="d-none d-md-table-cell">Election date</th>
+                    <th class="text-end d-none d-sm-table-cell">Positions</th>
+                    <th class="text-end d-none d-sm-table-cell">Candidates</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in municipalities)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <ImageThumb Url="@m.LogoImageId.ImageUrl()" Name="@m.Name" Alt="" CssClass="thumb thumb-sm" />
+                                <span class="theme-dot" style="background:@m.ThemeColor" title="Theme colour @m.ThemeColor"></span>
+                                <span class="fw-semibold">@m.Name</span>
+                            </div>
+                        </td>
+                        <td>
+                            @if (Links.PublicTenantUrl(m.Slug) is { } url)
+                            {
+                                <a href="@url" target="_blank" rel="noopener"><code>/@m.Slug</code></a>
+                            }
+                            else
+                            {
+                                <code>/@m.Slug</code>
+                            }
+                        </td>
+                        <td class="d-none d-lg-table-cell">@m.Province</td>
+                        <td class="d-none d-md-table-cell">@m.ElectionDate.ToString("MMM d, yyyy")</td>
+                        <td class="text-end d-none d-sm-table-cell">@m.PositionCount</td>
+                        <td class="text-end d-none d-sm-table-cell">@m.CandidateCount</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"municipalities/{m.Id}")">Details</a>
+                            <a class="btn btn-sm btn-outline-primary" href="@($"municipalities/{m.Id}/edit")">Edit</a>
+                            @if (isSuperAdmin)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = m">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmDialog Visible="pendingDelete is not null" VisibleChanged="v => { if (!v) pendingDelete = null; }"
+               Title="Delete municipality?" ConfirmText="Delete municipality" OnConfirm="DeleteAsync">
+    <p>
+        <strong>@pendingDelete?.Name</strong> will be deleted together with its
+        @pendingDelete?.PositionCount positions, @pendingDelete?.CandidateCount candidates, its images and its administrator accounts.
+    </p>
+    <p class="mb-0 text-danger">This cannot be undone.</p>
+</ConfirmDialog>
+
+@code {
+    private List<MunicipalityDto>? municipalities;
+    private MunicipalityDto? pendingDelete;
+    private bool isSuperAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+        municipalities = await Municipalities.ListAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (pendingDelete is not { } target)
+        {
+            return;
+        }
+
+        var result = await Municipalities.DeleteAsync(target.Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{target.Name} and all of its data were deleted.");
+            municipalities = await Municipalities.ListAsync();
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The municipality could not be deleted.");
+        }
+    }
+}

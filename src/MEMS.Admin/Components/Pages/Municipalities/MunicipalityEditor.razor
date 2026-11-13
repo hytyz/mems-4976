@@ -1,0 +1,226 @@
+@page "/municipalities/create"
+@page "/municipalities/{Id:int}/edit"
+@inject IMunicipalityService Municipalities
+@inject NavigationManager Navigation
+@inject FlashService Flash
+
+<PageTitle>@(IsEdit ? "Edit municipality" : "New municipality") · MEMS Admin</PageTitle>
+
+@if (accessDenied)
+{
+    <AccessDeniedMessage />
+}
+else if (notFound)
+{
+    <NotFoundMessage Title="Municipality not found" BackHref="municipalities" BackText="Back to municipalities" />
+}
+else if (input is not null)
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="municipalities">Municipalities</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@(IsEdit ? existing!.Name : "New")</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">@(IsEdit ? $"Edit {existing!.Name}" : "New municipality")</h1>
+
+    <EditForm Model="input" OnValidSubmit="SaveAsync" FormName="municipality" class="card form-card shadow-sm">
+        <div class="card-body p-4">
+            <DataAnnotationsValidator />
+            <ServerValidation @ref="serverValidation" />
+            <ValidationSummary class="alert alert-danger py-2 small" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="name">Name</label>
+                    <InputText id="name" class="form-control" @bind-Value="input.Name" @bind-Value:after="SuggestSlug" />
+                    <ValidationMessage For="() => input.Name" class="text-danger small" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="slug">URL slug</label>
+                    <div class="input-group">
+                        <span class="input-group-text">/</span>
+                        <InputText id="slug" class="form-control" @bind-Value="input.Slug" disabled="@(!isSuperAdmin)" />
+                    </div>
+                    <div class="form-text">
+                        @if (isSuperAdmin)
+                        {
+                            <span>Lowercase letters, digits and hyphens. The public site will be at <code>/@(string.IsNullOrEmpty(input.Slug) ? "slug" : input.Slug)</code>.</span>
+                        }
+                        else
+                        {
+                            <span>Only a Super Admin can change the URL slug.</span>
+                        }
+                    </div>
+                    <ValidationMessage For="() => input.Slug" class="text-danger small" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="province">Province</label>
+                    <InputText id="province" class="form-control" @bind-Value="input.Province" />
+                    <ValidationMessage For="() => input.Province" class="text-danger small" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="electionDate">Election date</label>
+                    <InputDate id="electionDate" class="form-control" @bind-Value="input.ElectionDate" />
+                    <ValidationMessage For="() => input.ElectionDate" class="text-danger small" />
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="tagline">Tagline <span class="text-secondary small">(shown on the public site)</span></label>
+                    <InputText id="tagline" class="form-control" @bind-Value="input.Tagline" />
+                    <ValidationMessage For="() => input.Tagline" class="text-danger small" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="themeColor">Theme colour</label>
+                    <div class="d-flex gap-2">
+                        <InputText id="themeColor" type="color" class="form-control form-control-color" @bind-Value="input.ThemeColor" title="Choose the brand colour" />
+                        <InputText class="form-control" @bind-Value="input.ThemeColor" aria-label="Theme colour hex value" />
+                    </div>
+                    <ValidationMessage For="() => input.ThemeColor" class="text-danger small" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="description">Description</label>
+                    <InputTextArea id="description" class="form-control" rows="4" @bind-Value="input.Description" />
+                    <ValidationMessage For="() => input.Description" class="text-danger small" />
+                </div>
+                <div class="col-12">
+                    <ImagePicker @ref="logoPicker" Id="logo" Label="Logo" CurrentUrl="@existing?.LogoImageId.ImageUrl()" />
+                </div>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2 bg-transparent">
+            <a class="btn btn-outline-secondary" href="@(IsEdit ? $"municipalities/{Id}" : "municipalities")">Cancel</a>
+            <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : IsEdit ? "Save changes" : "Create municipality")</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    private MunicipalityInput? input;
+    private MunicipalityDto? existing;
+    private ServerValidation? serverValidation;
+    private ImagePicker? logoPicker;
+    private bool isSuperAdmin;
+    private string? lastSuggestedSlug;
+    private bool saving;
+    private bool notFound;
+    private bool accessDenied;
+
+    [Parameter] public int? Id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private bool IsEdit => Id is not null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+
+        if (!IsEdit)
+        {
+            // Only a Super Admin creates tenants (the service enforces this as well).
+            accessDenied = !isSuperAdmin;
+            input = new MunicipalityInput { ElectionDate = new DateOnly(DateTime.Today.Year, 10, 17) };
+            return;
+        }
+
+        existing = await Municipalities.GetAsync(Id!.Value);
+        if (existing is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        input = new MunicipalityInput
+        {
+            Name = existing.Name,
+            Slug = existing.Slug,
+            Province = existing.Province,
+            ElectionDate = existing.ElectionDate,
+            Description = existing.Description,
+            Tagline = existing.Tagline,
+            ThemeColor = existing.ThemeColor
+        };
+    }
+
+    // Fills the slug from the name, but never overwrites a slug the user typed themselves.
+    private void SuggestSlug()
+    {
+        if (IsEdit || input is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(input.Slug) || input.Slug == lastSuggestedSlug)
+        {
+            input.Slug = SlugRules.Suggest(input.Name);
+            lastSuggestedSlug = input.Slug;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (logoPicker?.HasError == true)
+        {
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var result = IsEdit
+                ? await Municipalities.UpdateAsync(Id!.Value, input!)
+                : await Municipalities.CreateAsync(input!);
+
+            if (!result.IsSuccess)
+            {
+                ShowProblem(result.Status, result.Message, result.Errors);
+                return;
+            }
+
+            var saved = result.Value!;
+            string? imageError = await SaveLogoAsync(saved.Id);
+            if (imageError is not null)
+            {
+                Flash.Error($"{saved.Name} was saved, but the logo was not: {imageError}");
+                Navigation.NavigateTo($"municipalities/{saved.Id}/edit");
+                return;
+            }
+
+            Flash.Success(IsEdit ? $"{saved.Name} was updated." : $"{saved.Name} was created. Next, add positions and an administrator.");
+            Navigation.NavigateTo($"municipalities/{saved.Id}");
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task<string?> SaveLogoAsync(int municipalityId)
+    {
+        if (logoPicker?.Content is { } content)
+        {
+            var upload = await Municipalities.SetLogoAsync(municipalityId, content);
+            return upload.IsSuccess ? null : upload.Errors.Values.SelectMany(e => e).FirstOrDefault() ?? upload.Message;
+        }
+
+        if (logoPicker?.Remove == true)
+        {
+            await Municipalities.RemoveLogoAsync(municipalityId);
+        }
+
+        return null;
+    }
+
+    private void ShowProblem(ResultStatus status, string? message, IReadOnlyDictionary<string, string[]> errors)
+    {
+        if (status is ResultStatus.Invalid or ResultStatus.Conflict)
+        {
+            serverValidation?.Display(errors);
+        }
+        else
+        {
+            serverValidation?.Display(new Dictionary<string, string[]> { [string.Empty] = [message ?? "The changes could not be saved."] });
+        }
+    }
+}

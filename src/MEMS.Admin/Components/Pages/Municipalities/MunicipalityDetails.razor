@@ -1,0 +1,163 @@
+@page "/municipalities/{Id:int}"
+@inject IMunicipalityService Municipalities
+@inject IPositionService Positions
+@inject IAdminUserService AdminUsers
+@inject ServiceLinks Links
+@inject FlashService Flash
+@inject NavigationManager Navigation
+
+<PageTitle>@(municipality?.Name ?? "Municipality") · MEMS Admin</PageTitle>
+
+@if (notFound)
+{
+    <NotFoundMessage Title="Municipality not found" BackHref="municipalities" BackText="Back to municipalities" />
+}
+else if (municipality is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="municipalities">Municipalities</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@municipality.Name</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm mb-4">
+        <div class="tenant-banner" style="--tenant-color:@municipality.ThemeColor"></div>
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap gap-4 align-items-start">
+                <ImageThumb Url="@municipality.LogoImageId.ImageUrl()" Name="@municipality.Name" Alt="@($"{municipality.Name} logo")" CssClass="thumb thumb-xl" />
+                <div class="flex-grow-1">
+                    <h1 class="h3 mb-1">@municipality.Name</h1>
+                    @if (municipality.Tagline is not null)
+                    {
+                        <p class="lead mb-2">@municipality.Tagline</p>
+                    }
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="meta-pill">📍 @municipality.Province</span>
+                        <span class="meta-pill">🗓️ Election @municipality.ElectionDate.ToString("MMMM d, yyyy")</span>
+                        <span class="meta-pill">🔗 /@municipality.Slug</span>
+                        <span class="meta-pill"><span class="theme-dot" style="background:@municipality.ThemeColor"></span> @municipality.ThemeColor</span>
+                    </div>
+                    @if (municipality.Description is not null)
+                    {
+                        <p class="mb-0">@municipality.Description</p>
+                    }
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    <a class="btn btn-primary" href="@($"municipalities/{Id}/edit")">Edit</a>
+                    @if (Links.PublicTenantUrl(municipality.Slug) is { } url)
+                    {
+                        <a class="btn btn-outline-secondary" href="@url" target="_blank" rel="noopener">View public site</a>
+                    }
+                    @if (isSuperAdmin)
+                    {
+                        <button type="button" class="btn btn-outline-danger" @onclick="() => confirmDelete = true">Delete</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h5 section-title mb-0">Positions (@positions.Count)</h2>
+                <a class="btn btn-sm btn-outline-primary" href="@($"positions/create?municipalityId={Id}")">+ Add position</a>
+            </div>
+            @if (positions.Count == 0)
+            {
+                <p class="text-secondary">No positions yet.</p>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var p in positions)
+                    {
+                        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="@($"positions/{p.Id}")">
+                            <span>@p.Name <span class="text-secondary small">· @p.SeatsAvailable seat(s)</span></span>
+                            <span class="badge rounded-pill text-bg-secondary">@p.CandidateCount candidates</span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (isSuperAdmin)
+        {
+            <div class="col-lg-5">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 section-title mb-0">Administrators</h2>
+                    <a class="btn btn-sm btn-outline-primary" href="@($"users/create?municipalityId={Id}")">+ Add administrator</a>
+                </div>
+                @if (administrators.Count == 0)
+                {
+                    <p class="text-secondary">No Municipality Administrator is assigned yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group">
+                        @foreach (var a in administrators)
+                        {
+                            <li class="list-group-item">👤 @a.UserName</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </div>
+
+    <ConfirmDialog @bind-Visible="confirmDelete" Title="Delete municipality?" ConfirmText="Delete municipality" OnConfirm="DeleteAsync">
+        <p><strong>@municipality.Name</strong> will be deleted together with its positions, candidates, images and administrator accounts.</p>
+        <p class="mb-0 text-danger">This cannot be undone.</p>
+    </ConfirmDialog>
+}
+
+@code {
+    private MunicipalityDto? municipality;
+    private List<PositionDto> positions = [];
+    private List<AdminUserDto> administrators = [];
+    private bool isSuperAdmin;
+    private bool notFound;
+    private bool confirmDelete;
+
+    [Parameter] public int Id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isSuperAdmin = (await AuthenticationState).User.IsSuperAdmin();
+        municipality = await Municipalities.GetAsync(Id);
+        notFound = municipality is null;
+        if (notFound)
+        {
+            return;
+        }
+
+        positions = (await Positions.ListAsync()).Where(p => p.MunicipalityId == Id).ToList();
+
+        if (isSuperAdmin && await AdminUsers.ListAsync() is { IsSuccess: true } users)
+        {
+            administrators = users.Value!.Where(u => u.MunicipalityId == Id).ToList();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var result = await Municipalities.DeleteAsync(Id);
+        if (result.IsSuccess)
+        {
+            Flash.Success($"{municipality!.Name} and all of its data were deleted.");
+            Navigation.NavigateTo("municipalities");
+        }
+        else
+        {
+            Flash.Error(result.Message ?? "The municipality could not be deleted.");
+        }
+    }
+}
