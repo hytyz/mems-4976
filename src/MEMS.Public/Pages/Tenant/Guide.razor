@@ -1,0 +1,114 @@
+@page "/{Tenant}/guide"
+@inherits TenantPage
+
+<TenantShell Slug="@Tenant">
+    <PageTitle>My voting guide · Municipal Elections</PageTitle>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-1">My voting guide</h1>
+            <p class="text-secondary mb-0">@TotalChosen candidate@(TotalChosen == 1 ? "" : "s") chosen</p>
+        </div>
+        @if (TotalChosen > 0)
+        {
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary" href="@($"{Slug}/guide/print")">🖨️ Printable guide</a>
+                @if (confirmClear)
+                {
+                    <button type="button" class="btn btn-danger" @onclick="ClearAsync">Yes, clear all</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => confirmClear = false">Keep</button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="() => confirmClear = true">Clear guide</button>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="guide-rules mb-4">
+        <strong>🔒 Private by design.</strong>
+        Your choices are stored only in this browser tab (session storage). They are never sent to the server or saved in any database,
+        so nobody, including election administrators, can see them. They disappear when you close the browser.
+        For each position you can choose as many candidates as there are seats.
+    </div>
+
+    @if (LoadError is not null)
+    {
+        <div class="alert alert-warning">@LoadError</div>
+    }
+    else if (groups is null)
+    {
+        <div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div></div>
+    }
+    else if (groups.Count == 0)
+    {
+        <p class="text-secondary">No positions have been announced for this election yet.</p>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var group in groups)
+            {
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <h2 class="h6 mb-0">@group.Position.Name</h2>
+                            <div class="d-flex align-items-center gap-2 small text-secondary">
+                                <div class="seat-meter" role="img" aria-label="@($"{group.Candidates.Count} of {group.Position.SeatsAvailable} seats chosen")">
+                                    <span style="width:@(Math.Min(100, group.Candidates.Count * 100 / Math.Max(1, group.Position.SeatsAvailable)))%"></span>
+                                </div>
+                                @group.Candidates.Count / @group.Position.SeatsAvailable
+                            </div>
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var c in group.Candidates)
+                            {
+                                <li class="list-group-item d-flex align-items-center gap-3">
+                                    <CandidatePhoto Candidate="c" Slug="@Slug" CssClass="avatar" />
+                                    <a class="flex-grow-1 text-decoration-none fw-semibold" href="@($"{Slug}/candidates/{c.Id}")">@c.Name</a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Guide.RemoveAsync(Slug, c.Id)" aria-label="@($"Remove {c.Name}")">Remove</button>
+                                </li>
+                            }
+                            @if (group.Candidates.Count < group.Position.SeatsAvailable)
+                            {
+                                <li class="list-group-item">
+                                    <a class="small" href="@($"{Slug}/candidates?positionId={group.Position.Id}")">
+                                        @if (group.Candidates.Count == 0)
+                                        {
+                                            <span>+ Choose up to @group.Position.SeatsAvailable for @group.Position.Name</span>
+                                        }
+                                        else
+                                        {
+                                            <span>+ Choose up to @(group.Position.SeatsAvailable - group.Candidates.Count) more for @group.Position.Name</span>
+                                        }
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</TenantShell>
+
+@code {
+    private List<GuideGroup>? groups;
+    private bool confirmClear;
+
+    private int TotalChosen => groups?.Sum(g => g.Candidates.Count) ?? 0;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    protected override Task OnSelectionsChangedAsync() => LoadAsync();
+
+    private async Task LoadAsync() =>
+        await LoadSafelyAsync(async () => groups = await GuideLoader.LoadAsync(Api, Guide, Slug));
+
+    private async Task ClearAsync()
+    {
+        confirmClear = false;
+        await Guide.ClearAsync(Slug);
+    }
+}

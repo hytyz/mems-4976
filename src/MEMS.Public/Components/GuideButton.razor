@@ -1,0 +1,37 @@
+@* Adds a candidate to, or removes them from, the visitor's voting guide (browser session storage only). *@
+@inject VotingGuide Guide
+
+@if (InGuide)
+{
+    <button type="button" class="btn btn-sm btn-outline-secondary @CssClass" @onclick="RemoveAsync">✓ In your guide · Remove</button>
+}
+else if (BlockReason is not null)
+{
+    <button type="button" class="btn btn-sm btn-outline-secondary @CssClass" disabled title="@BlockReason">Seats filled for this position</button>
+}
+else
+{
+    <button type="button" class="btn btn-sm btn-accent @CssClass" @onclick="AddAsync">+ Add to my guide</button>
+}
+
+@code {
+    [Parameter, EditorRequired] public CandidateDto Candidate { get; set; } = default!;
+    [Parameter, EditorRequired] public string Slug { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyCollection<BallotEntry> Selections { get; set; } = [];
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> OnBlocked { get; set; }
+
+    private bool InGuide => Selections.Any(s => s.CandidateId == Candidate.Id);
+
+    private string? BlockReason => VotingGuide.GetBlockReason(Selections, Candidate);
+
+    private async Task AddAsync()
+    {
+        if (await Guide.AddAsync(Slug, Candidate) is { } reason)
+        {
+            await OnBlocked.InvokeAsync(reason);
+        }
+    }
+
+    private Task RemoveAsync() => Guide.RemoveAsync(Slug, Candidate.Id);
+}
