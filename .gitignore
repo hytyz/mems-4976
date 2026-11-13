@@ -489,3 +489,5 @@ appsettings.Development.json
 *.db-shm
 *.db-wal
 
+# Uploaded images (stored outside wwwroot)
+App_Data/
