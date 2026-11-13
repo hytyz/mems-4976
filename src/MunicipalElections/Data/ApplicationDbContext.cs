@@ -15,7 +15,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Endorsement> Endorsements => Set<Endorsement>();
-    public DbSet<MunicipalityAdmin> MunicipalityAdmins => Set<MunicipalityAdmin>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -28,6 +27,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(m => m.Province).HasMaxLength(50);
             entity.Property(m => m.Description).HasMaxLength(2000);
             entity.Property(m => m.LogoFileName).HasMaxLength(300);
+            entity.HasIndex(m => m.AdminRoleName).IsUnique();
+            entity.Property(m => m.AdminRoleName).HasMaxLength(256);
         });
 
         builder.Entity<Position>(entity =>
@@ -65,19 +66,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Candidate)
                 .WithMany(c => c.Endorsements)
                 .HasForeignKey(e => e.CandidateId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        builder.Entity<MunicipalityAdmin>(entity =>
-        {
-            entity.HasKey(ma => new { ma.ApplicationUserId, ma.MunicipalityId });
-            entity.HasOne(ma => ma.ApplicationUser)
-                .WithMany(u => u.MunicipalityAdmins)
-                .HasForeignKey(ma => ma.ApplicationUserId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(ma => ma.Municipality)
-                .WithMany(m => m.MunicipalityAdmins)
-                .HasForeignKey(ma => ma.MunicipalityId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

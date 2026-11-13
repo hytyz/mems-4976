@@ -304,6 +304,11 @@ namespace MunicipalElections.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AdminRoleName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -327,25 +332,13 @@ namespace MunicipalElections.Data.Migrations
 
                     b.HasKey("MunicipalityId");
 
+                    b.HasIndex("AdminRoleName")
+                        .IsUnique();
+
                     b.HasIndex("Name")
                         .IsUnique();
 
                     b.ToTable("Municipalities");
-                });
-
-            modelBuilder.Entity("MunicipalElections.Models.MunicipalityAdmin", b =>
-                {
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("MunicipalityId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("ApplicationUserId", "MunicipalityId");
-
-                    b.HasIndex("MunicipalityId");
-
-                    b.ToTable("MunicipalityAdmins");
                 });
 
             modelBuilder.Entity("MunicipalElections.Models.Position", b =>
@@ -445,25 +438,6 @@ namespace MunicipalElections.Data.Migrations
                     b.Navigation("Candidate");
                 });
 
-            modelBuilder.Entity("MunicipalElections.Models.MunicipalityAdmin", b =>
-                {
-                    b.HasOne("MunicipalElections.Models.ApplicationUser", "ApplicationUser")
-                        .WithMany("MunicipalityAdmins")
-                        .HasForeignKey("ApplicationUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MunicipalElections.Models.Municipality", "Municipality")
-                        .WithMany("MunicipalityAdmins")
-                        .HasForeignKey("MunicipalityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApplicationUser");
-
-                    b.Navigation("Municipality");
-                });
-
             modelBuilder.Entity("MunicipalElections.Models.Position", b =>
                 {
                     b.HasOne("MunicipalElections.Models.Municipality", "Municipality")
@@ -475,11 +449,6 @@ namespace MunicipalElections.Data.Migrations
                     b.Navigation("Municipality");
                 });
 
-            modelBuilder.Entity("MunicipalElections.Models.ApplicationUser", b =>
-                {
-                    b.Navigation("MunicipalityAdmins");
-                });
-
             modelBuilder.Entity("MunicipalElections.Models.Candidate", b =>
                 {
                     b.Navigation("Endorsements");
@@ -487,8 +456,6 @@ namespace MunicipalElections.Data.Migrations
 
             modelBuilder.Entity("MunicipalElections.Models.Municipality", b =>
                 {
-                    b.Navigation("MunicipalityAdmins");
-
                     b.Navigation("Positions");
                 });
 

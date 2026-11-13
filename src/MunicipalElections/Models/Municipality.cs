@@ -23,6 +23,12 @@ public class Municipality
 
     public string? LogoFileName { get; set; }
 
+    /// <summary>
+    /// Name of the Identity role (group) whose members administer this municipality.
+    /// Every municipality has its own role, e.g. "Pitt Meadows Admin".
+    /// </summary>
+    [StringLength(256)]
+    public string AdminRoleName { get; set; } = string.Empty;
+
     public ICollection<Position> Positions { get; set; } = new List<Position>();
-    public ICollection<MunicipalityAdmin> MunicipalityAdmins { get; set; } = new List<MunicipalityAdmin>();
 }
