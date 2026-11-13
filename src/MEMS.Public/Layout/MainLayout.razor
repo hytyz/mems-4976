@@ -1,0 +1,60 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ILogger<MainLayout> Logger
+
+<nav class="navbar navbar-dark site-nav">
+    <div class="container-xl">
+        <a class="navbar-brand" href="">
+            <span class="brand-mark" aria-hidden="true">🗳️</span>
+            <span>Municipal Elections</span>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a class="nav-link text-white-50 d-none d-sm-inline" href="">All municipalities</a>
+            <button type="button" class="btn btn-sm btn-outline-light" data-theme-toggle aria-label="Toggle dark mode">◐</button>
+        </div>
+    </div>
+</nav>
+
+<main class="page-content container-xl py-4">
+    <ErrorBoundary @ref="errorBoundary">
+        <ChildContent>@Body</ChildContent>
+        <ErrorContent Context="exception">
+            @{ LogUnhandled(exception); }
+            <div class="alert alert-danger" role="alert">
+                <h2 class="h5">Something went wrong</h2>
+                <p class="mb-2">This page could not be displayed. Please try again.</p>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => errorBoundary?.Recover()">Try again</button>
+            </div>
+        </ErrorContent>
+    </ErrorBoundary>
+</main>
+
+<footer class="site-footer no-print">
+    <div class="container-xl d-flex flex-wrap justify-content-between gap-2">
+        <span>Municipal Elections Management System</span>
+        <span title="Your choices are kept in this browser tab only and are never sent to our servers.">
+            🔒 Your voting guide never leaves your browser.
+        </span>
+    </div>
+</footer>
+
+@code {
+    private ErrorBoundary? errorBoundary;
+    private Exception? lastLogged;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => errorBoundary?.Recover();
+
+    private void LogUnhandled(Exception exception)
+    {
+        if (!ReferenceEquals(exception, lastLogged))
+        {
+            lastLogged = exception;
+            Logger.LogError(exception, "Unhandled exception while rendering {Uri}", Navigation.Uri);
+        }
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

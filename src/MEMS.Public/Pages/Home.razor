@@ -1,0 +1,71 @@
+﻿@page "/"
+@inject ApiClient Api
+@inject ApiUrls Urls
+
+<PageTitle>Municipal Elections</PageTitle>
+
+<section class="hero mb-4">
+    <h1 class="display-6 fw-bold mb-2">Know your candidates</h1>
+    <p class="lead mb-0">Choose your municipality to browse the positions on the ballot, read about every candidate and build a private voting guide.</p>
+</section>
+
+@if (error is not null)
+{
+    <div class="alert alert-warning">@error</div>
+}
+else if (municipalities is null)
+{
+    <div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div></div>
+}
+else
+{
+    <h2 class="h5 section-title mb-3">Municipalities</h2>
+    <div class="row g-3">
+        @foreach (var m in municipalities)
+        {
+            <div class="col-12 col-sm-6 col-lg-4">
+                <a class="card card-lift muni-card h-100 text-decoration-none text-body" href="@m.Slug">
+                    <div class="muni-banner" style="background: linear-gradient(90deg, @m.ThemeColor, var(--mems-accent))"></div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            @if (Urls.Image(m.Slug, m.LogoImageId) is { } logo)
+                            {
+                                <img src="@logo" alt="" class="muni-logo-sm" />
+                            }
+                            else
+                            {
+                                <span class="muni-initial" style="background:@m.ThemeColor" aria-hidden="true">@m.Name[0]</span>
+                            }
+                            <div>
+                                <h3 class="h5 mb-0">@m.Name</h3>
+                                <div class="small text-secondary">@m.Tagline</div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <span class="meta-pill">🗓️ @m.ElectionDate.ToString("MMM d, yyyy")</span>
+                            <span class="meta-pill">🪑 @m.PositionCount positions</span>
+                            <span class="meta-pill">🧑‍💼 @m.CandidateCount candidates</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<MunicipalityDto>? municipalities;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            municipalities = await Api.GetMunicipalitiesAsync() ?? [];
+        }
+        catch (ApiUnavailableException ex)
+        {
+            error = ex.Message;
+        }
+    }
+}
