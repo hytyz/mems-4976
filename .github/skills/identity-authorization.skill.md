@@ -1,37 +1,28 @@
-# Skill: Identity Roles and Municipality-Scoped Authorization
+# Skill: Identity, roles and tenant-aware authorization
 
 ## When to use
-Adding an admin action, page, or controller action that reads or writes municipal
-data.
+Adding an admin page, an API write endpoint, or anything that touches administrator accounts.
 
 ## Roles
-- `SuperAdmin` — system-wide access; the only role allowed to create, edit, and
-  delete municipalities.
-- `MunicipalityAdmin` — access limited to the municipalities assigned in the
-  `MunicipalityAdmins` join table.
+- `SuperAdmin` (`AppRoles.SuperAdmin`): manages every tenant, creates/deletes tenants, manages accounts.
+- `MunicipalityAdmin` (`AppRoles.MunicipalityAdmin`): assigned to exactly one tenant through
+  `ApplicationUser.MunicipalityId`. Can edit their municipality (not its slug) and its positions and
+  candidates.
 
-Role names live in the `Roles` constants class in
-`Services/MunicipalityAccessService.cs`; reference them instead of string literals.
+`TenantClaimsPrincipalFactory` adds `tenant_id` and `tenant_slug` claims for a Municipality
+Administrator. The Admin cookie and the API JWT are built from the same factory.
 
-## Applying authorization
-- Gate whole controllers with
-  `[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.MunicipalityAdmin}")]`, or
-  `[Authorize(Roles = Roles.SuperAdmin)]` for municipality management.
-- Every action that takes an entity id must confirm ownership through
-  `MunicipalityAccessService`:
-  - `CanManageMunicipalityAsync(user, municipalityId)`
-  - `CanManagePositionAsync(user, positionId)`
-  - `CanManageCandidateAsync(user, candidateId)`
-- Return `NotFound()` when a user reaches an entity outside their scope; reserve
-  `Forbid()` for a known-but-disallowed action. Never trust a client-supplied id.
-- Filter list/index queries with the ids from
-  `GetMunicipalityIdsAsync(user)` so a municipality admin only ever sees their own
-  data.
+## Admin (Blazor Server)
+- Pages inherit `[Authorize(Policy = AdminPolicies.AnyAdmin)]` from `Components/Pages/_Imports.razor`.
+- Super-Admin-only pages live in `Components/Pages/Users` (`AdminPolicies.SuperAdmin`) or check
+  `user.IsSuperAdmin()` and render `<AccessDeniedMessage />`.
+- The service layer enforces the same rules again; the UI check is only for a friendly page.
+- Security stamps are validated on every request, so deleting an account or resetting a password
+  signs it out immediately.
 
-## Public (anonymous) surface
-Anonymous visitors may browse, search, and select candidates and print or export
-their voting guide. Do not require authentication for public candidate pages.
+## API
+- `POST /api/auth/login` returns a JWT (30 minutes). Lockout: 5 failures → 5 minutes.
+- Policies: `SuperAdmin`, `AnyAdmin`, `TenantAdmin` (role + tenant in URL must match).
 
-## Seed accounts
-`DbInitializer` creates `super` (SuperAdmin) and `pm` (MunicipalityAdmin, mapped to
-Pitt Meadows) with password `P@$$w0rd`.
+## Passwords
+`IdentityDefaults.Configure`: at least 8 characters with upper, lower, digit and symbol.
