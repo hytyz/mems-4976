@@ -1,67 +1,63 @@
-Municipal Elections Management System
-=====================================
-A complete ASP.NET Core MVC web application that supports candidate registration and voter information for municipal elections.
-The application allows municipal administrators to manage election candidates while providing a public-facing website where voters can review candidates and prepare a personalized voting guide to print before election day.
+Municipal Elections Management System - Assignment 2
+====================================================
+
+Multi-tenant .NET 10 solution orchestrated by .NET Aspire (solution file: MEMS.slnx).
+
+  src/MEMS.AppHost          Aspire orchestration (SQL Server container, API, Admin, Public)
+  src/MEMS.ServiceDefaults  OpenTelemetry, health checks, service discovery, resilience
+  src/MEMS.Admin            Blazor Server admin site, shared by all municipalities  (/admin)
+  src/MEMS.Public           Blazor WebAssembly public site, one per tenant via URL (/burnaby, /surrey, ...)
+  src/MEMS.Api              ASP.NET Core Web API (/api/{tenant}/...), JWT, Swagger (/swagger)
+  src/MEMS.Data             EF Core (SQL Server), migrations, seed data, service layer
+  src/MEMS.Shared           DTOs and validated input contracts
+
+Documentation: docs/Assignment2-Documentation.pdf (source: Assignment2-Documentation.html)
+  docs/api.md                API reference: endpoints, request/response and error examples
+  docs/erd.md                ERD (Mermaid)
+  docs/deficiency-report.md  Assignment 1 deficiency resolution report
+  docs/copilot-usage.md      GitHub Copilot usage
+  docs/screenshots/a2/       Screenshots (Aspire dashboard, admin site, public site, API testing, SQL Server)
+
+The Assignment 1 MVC project (src/MunicipalElections, MunicipalElections.slnx) is kept for reference
+and is not part of MEMS.slnx.
+
+Requirements
+------------
+- .NET 10 SDK
+- Docker Desktop (or Podman) running: Aspire starts SQL Server 2022 in a container
+- Trusted HTTPS development certificate: dotnet dev-certs https --trust
+
+Running
+-------
+  dotnet run --project src/MEMS.AppHost
+
+Open the Aspire dashboard link printed in the console. From there:
+  Admin site    https://localhost:7196/admin
+  Public site   https://localhost:7180          (e.g. https://localhost:7180/burnaby)
+  API / Swagger https://localhost:7045/swagger
+
+On the first run the API applies the EF Core migration and seeds the data. The SQL Server data is kept in
+the Docker volume "mems-sql-data". Aspire generates the SQL Server password and the JWT signing key and
+stores them in the AppHost's user secrets.
+
+Accounts (initial password P@$$w0rd, the AppHost parameter "seed-admin-password")
+----------------------------------------------------------------------------------
+  super          Super Admin                 all municipalities
+  burnabyadmin   Municipality Administrator  Burnaby
+  surreyadmin    Municipality Administrator  Surrey
+  richmondadmin  Municipality Administrator  Richmond
+  pm             Municipality Administrator  Pitt Meadows (Assignment 1 account)
+
+Rules worth knowing
+-------------------
+- Tenant isolation: a Municipality Administrator sees and changes only their municipality, in the admin
+  site and in the API. Another tenant's record is reported as "not found"; writes to another tenant's
+  API URL return 403.
+- Only a Super Admin creates or deletes municipalities, changes URL slugs and manages accounts.
+- Voting-guide selections are stored only in the browser's sessionStorage. They are never sent to the
+  API or written to SQL Server, and they disappear when the browser session ends.
+- For each position a visitor may choose as many candidates as there are seats.
 
 Team
 ----
 Polina Omelyantseva
-
-Contributions
--------------
-Polina Omelyantseva:
-- Designed the EF Core Code First domain model (Municipality, Position, Candidate, Endorsement, MunicipalityAdmin)
-- Scaffolded the ASP.NET Core MVC solution and generated the InitialCreate migration with the EF Core CLI
-- Implemented ASP.NET Core Identity authentication/authorization with SuperAdmin and municipality-scoped admin roles
-- Built public candidate directory (search, filter, pagination), candidate comparison, and dark mode
-- Built the session-based personal voting guide with printer view and PDF export
-- Implemented admin area CRUD for municipalities, positions, and candidates, including image upload
-- Created the dev container, helper scripts, and this documentation
-- Deployed the application to Azure App Service with the az CLI
-What has not been completed
----------------------------
-- GitHub repository has not been created/pushed (local history exists, no remote yet)
-- Final PDF/Word documentation document (project description, ERD, screenshots)
-- Azure deployment screenshot
-- Zipped D2L submission
-- No automated test project
-- No standalone "browse all positions" page; positions are browsed per municipality
-- Public self-registration is enabled (self-registered users receive no role)
-
-See docs/completion-report.md for the full requirement-by-requirement status.
-
-Major challenges encountered
-----------------------------
-- .NET SDK was not installed on the host, so all development ran inside a Podman
-  dev container using the mcr.microsoft.com/dotnet/sdk:10.0 image.
-- The ASP.NET code generator does not support scaffolding into an Area directly;
-  Admin controllers were generated into the target folder/namespace and their views
-  were authored by hand.
-
-Special instructions for testing the application
-------------------------------------------------
-1. Install Podman (rootless) and pull the .NET 10 SDK image:
-     podman pull mcr.microsoft.com/dotnet/sdk:10.0
-2. Run the application:
-     ./scripts/run.sh
-   or run a single dotnet command inside the container:
-     ./scripts/dotnet.sh <args>
-3. Open http://localhost:5000.
-   Seed data (roles, users, municipalities, positions, candidates) is created
-   automatically on first launch.
-4. Login accounts:
-     super / P@$$w0rd   (Super Admin)
-     pm    / P@$$w0rd   (Pitt Meadows Admin)
-5. The SQLite database is created at src/MunicipalElections/municipal-elections.db
-   when running locally.
-
-Note on Podman: when these scripts run from inside the VS Code snap, the snap leaks
-its revision-specific XDG_DATA_HOME and Podman fails with a container storage
-"database configuration mismatch". scripts/_podman-env.sh repoints XDG_DATA_HOME,
-XDG_CONFIG_HOME and XDG_CACHE_HOME at the real home directories, and both
-scripts/dotnet.sh and scripts/run.sh source it automatically. No manual action is
-required.
-
-Deployed application URL
-------------------------
-https://mems-assignment-app.azurewebsites.net
