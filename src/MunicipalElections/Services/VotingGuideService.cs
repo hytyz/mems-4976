@@ -1,18 +1,33 @@
-using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using MunicipalElections.Data;
+using MunicipalElections.Models;
 
 namespace MunicipalElections.Services;
 
+/// <summary>
+/// A visitor's personal voting guide, kept in their session.
+/// Rules, mirroring a real ballot:
+///  - a guide covers one municipality only (you vote where you live);
+///  - for each position you may pick at most as many candidates as there are seats
+///    (so one mayor, but e.g. six councillors);
+///  - administrators do not get a voting guide at all.
+/// </summary>
 public class VotingGuideService
 {
     private const string SessionKey = "VotingGuide";
 
     private readonly IHttpContextAccessor _http;
+    private readonly ApplicationDbContext _db;
 
-    public VotingGuideService(IHttpContextAccessor http)
+    public VotingGuideService(IHttpContextAccessor http, ApplicationDbContext db)
     {
         _http = http;
+        _db = db;
     }
+
+    /// <summary>Only visitors build a guide; anyone signed in is an administrator.</summary>
+    public bool IsAvailable => _http.HttpContext?.User.Identity?.IsAuthenticated != true;
 
     public List<int> GetIds()
     {
@@ -34,6 +49,51 @@ public class VotingGuideService
     }
 
     public bool Contains(int candidateId) => GetIds().Contains(candidateId);
+
+    /// <summary>The candidates currently in the guide, with position and municipality loaded.</summary>
+    public async Task<List<Candidate>> GetCandidatesAsync()
+    {
+        var ids = GetIds();
+        if (ids.Count == 0)
+        {
+            return new List<Candidate>();
+        }
+
+        return await _db.Candidates
+            .Where(c => ids.Contains(c.CandidateId))
+            .Include(c => c.Position)
+                .ThenInclude(p => p!.Municipality)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Explains why the candidate cannot be added to the guide, or returns null when they can.
+    /// The candidate must have Position and Position.Municipality loaded.
+    /// </summary>
+    public async Task<string?> GetBlockReasonAsync(Candidate candidate)
+    {
+        var position = candidate.Position!;
+        var selected = (await GetCandidatesAsync())
+            .Where(c => c.CandidateId != candidate.CandidateId)
+            .ToList();
+
+        var other = selected.FirstOrDefault(c => c.Position!.MunicipalityId != position.MunicipalityId);
+        if (other != null)
+        {
+            return $"Your voting guide is for {other.Position!.Municipality!.Name}. A guide covers one municipality, " +
+                   $"so clear it before choosing candidates in {position.Municipality!.Name}.";
+        }
+
+        int chosen = selected.Count(c => c.PositionId == position.PositionId);
+        if (chosen >= position.SeatsAvailable)
+        {
+            return position.SeatsAvailable == 1
+                ? $"You have already chosen a candidate for {position.Name}. Only one can be elected, so remove your current choice first."
+                : $"You have already chosen {chosen} candidates for {position.Name}, one for each of the {position.SeatsAvailable} seats. Remove one first.";
+        }
+
+        return null;
+    }
 
     public void Add(int candidateId)
     {
