@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using MunicipalElections.Data;
 using MunicipalElections.Models;
@@ -22,6 +23,18 @@ public class VotingGuideController : Controller
         _env = env;
     }
 
+    /// <summary>
+    /// The voting guide is a visitor feature. Administrators (anyone signed in)
+    /// cannot view it or shortlist candidates, even by posting to these actions directly.
+    /// </summary>
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        if (!_guide.IsAvailable)
+        {
+            context.Result = Forbid();
+        }
+    }
+
     public async Task<IActionResult> Index()
     {
         var model = await LoadSelectedCandidatesAsync();
@@ -30,18 +43,38 @@ public class VotingGuideController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Add(int candidateId)
+    public async Task<IActionResult> Add(int candidateId, string? returnUrl)
     {
-        _guide.Add(candidateId);
-        return RedirectToAction(nameof(Index));
+        var candidate = await _context.Candidates
+            .Include(c => c.Position)
+                .ThenInclude(p => p!.Municipality)
+            .FirstOrDefaultAsync(c => c.CandidateId == candidateId);
+        if (candidate == null)
+        {
+            return NotFound();
+        }
+
+        // One municipality per guide, and no more picks per position than seats.
+        string? blocked = await _guide.GetBlockReasonAsync(candidate);
+        if (blocked != null)
+        {
+            TempData["Error"] = blocked;
+        }
+        else
+        {
+            _guide.Add(candidateId);
+            TempData["Success"] = $"{candidate.Name} was added to your voting guide.";
+        }
+
+        return RedirectBack(returnUrl);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Remove(int candidateId)
+    public IActionResult Remove(int candidateId, string? returnUrl)
     {
         _guide.Remove(candidateId);
-        return RedirectToAction(nameof(Index));
+        return RedirectBack(returnUrl);
     }
 
     [HttpPost]
@@ -109,14 +142,19 @@ public class VotingGuideController : Controller
         return File(stream.ToArray(), "application/pdf", "voting-guide.pdf");
     }
 
+    private IActionResult RedirectBack(string? returnUrl)
+    {
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<List<VotingGuideGroup>> LoadSelectedCandidatesAsync()
     {
-        var ids = _guide.GetIds();
-        var candidates = await _context.Candidates
-            .Where(c => ids.Contains(c.CandidateId))
-            .Include(c => c.Position)
-                .ThenInclude(p => p!.Municipality)
-            .ToListAsync();
+        var candidates = await _guide.GetCandidatesAsync();
 
         return candidates
             .GroupBy(c => c.Position!.Municipality!)

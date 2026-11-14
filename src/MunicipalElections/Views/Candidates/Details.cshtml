@@ -1,10 +1,14 @@
 @model Candidate
 @{
     ViewData["Title"] = Model.Name;
+    bool canUseGuide = (bool)(ViewData["CanUseGuide"] ?? false);
     var inGuide = (bool)(ViewData["InGuide"] ?? false);
+    var blockReason = ViewData["GuideBlockReason"] as string;
+    string here = Context.Request.Path + Context.Request.QueryString;
+    string initials = string.Concat(Model.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0]));
 }
 
-<nav aria-label="breadcrumb" class="mt-2">
+<nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
         <li class="breadcrumb-item"><a asp-action="Index">Candidates</a></li>
@@ -16,36 +20,48 @@
     <div class="col-md-4">
         @if (!string.IsNullOrWhiteSpace(Model.PhotoFileName))
         {
-            <img src="~/uploads/candidates/@Model.PhotoFileName" class="img-fluid rounded" alt="@Model.Name" />
+            <img src="~/uploads/candidates/@Model.PhotoFileName" class="candidate-portrait" alt="@Model.Name" />
         }
         else
         {
-            <div class="img-fluid rounded d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary" style="height:300px">
-                <span>No photo</span>
+            <div class="candidate-placeholder tall" aria-hidden="true">@initials</div>
+        }
+        @if (canUseGuide)
+        {
+            @* Only visitors can shortlist candidates; administrators never see these controls. *@
+            <div class="d-grid gap-2 mt-3 no-print">
+                @if (inGuide)
+                {
+                    <form asp-controller="VotingGuide" asp-action="Remove" method="post">
+                        <input type="hidden" name="candidateId" value="@Model.CandidateId" />
+                        <input type="hidden" name="returnUrl" value="@here" />
+                        <button type="submit" class="btn btn-outline-danger w-100">Remove from my voting guide</button>
+                    </form>
+                    <a class="btn btn-outline-primary" asp-controller="VotingGuide" asp-action="Index">View my voting guide</a>
+                }
+                else if (blockReason != null)
+                {
+                    <button type="button" class="btn btn-secondary w-100" disabled>Add to my voting guide</button>
+                    <div class="guide-rules">@blockReason <a asp-controller="VotingGuide" asp-action="Index">Open my guide</a></div>
+                }
+                else
+                {
+                    <form asp-controller="VotingGuide" asp-action="Add" method="post">
+                        <input type="hidden" name="candidateId" value="@Model.CandidateId" />
+                        <input type="hidden" name="returnUrl" value="@here" />
+                        <button type="submit" class="btn btn-primary btn-lg w-100">★ Add to my voting guide</button>
+                    </form>
+                }
             </div>
         }
-        <div class="d-grid gap-2 mt-3 no-print">
-            @if (inGuide)
-            {
-                <form asp-controller="VotingGuide" asp-action="Remove" method="post">
-                    <input type="hidden" name="candidateId" value="@Model.CandidateId" />
-                    <button type="submit" class="btn btn-outline-danger w-100">Remove from my guide</button>
-                </form>
-            }
-            else
-            {
-                <form asp-controller="VotingGuide" asp-action="Add" method="post">
-                    <input type="hidden" name="candidateId" value="@Model.CandidateId" />
-                    <button type="submit" class="btn btn-primary w-100">Add to my voting guide</button>
-                </form>
-            }
-        </div>
     </div>
     <div class="col-md-8">
-        <h1>@Model.Name</h1>
-        <p class="text-muted">
-            @Model.Position!.Name — @Model.Position!.Municipality!.Name
-        </p>
+        <h1 class="mb-2">@Model.Name</h1>
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <span class="badge rounded-pill position-badge fs-6">@Model.Position!.Name</span>
+            <a class="meta-pill text-decoration-none" asp-controller="Home" asp-action="Municipality" asp-route-id="@Model.Position!.MunicipalityId">📍 @Model.Position!.Municipality!.Name</a>
+            <span class="meta-pill">@Model.Position!.SeatsAvailable seat@(Model.Position!.SeatsAvailable == 1 ? "" : "s") available</span>
+        </div>
         @if (!string.IsNullOrWhiteSpace(Model.Profile))
         {
             <h2 class="h5">Biography</h2>

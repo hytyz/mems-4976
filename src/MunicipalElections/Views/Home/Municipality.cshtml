@@ -3,46 +3,82 @@
     ViewData["Title"] = Model.Name;
 }
 
-<nav aria-label="breadcrumb" class="mt-2">
+<nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Municipalities</a></li>
         <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
     </ol>
 </nav>
 
-<div class="d-flex align-items-center gap-4 mb-4">
-    @if (!string.IsNullOrWhiteSpace(Model.LogoFileName))
-    {
-        <img src="~/uploads/municipalities/@Model.LogoFileName" alt="@Model.Name logo" class="municipality-logo" />
-    }
-    <div>
-        <h1>@Model.Name</h1>
-        <p class="text-muted mb-1">@Model.Province</p>
-        <p class="mb-1"><strong>Election date:</strong> @Model.ElectionDate.ToString("MMMM d, yyyy")</p>
-        @if (!string.IsNullOrWhiteSpace(Model.Description))
+<section class="hero mb-5">
+    <div class="d-flex align-items-center gap-4 flex-wrap">
+        @if (!string.IsNullOrWhiteSpace(Model.LogoFileName))
         {
-            <p>@Model.Description</p>
+            <img src="~/uploads/municipalities/@Model.LogoFileName" alt="@Model.Name logo" class="municipality-logo bg-white rounded-3 p-2" />
+        }
+        <div>
+            <h1 class="display-6 fw-bold mb-1">@Model.Name</h1>
+            <p class="mb-2 opacity-75">@Model.Province</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                <p class="lead mb-3">@Model.Description</p>
+            }
+            <span class="hero-stat d-inline-block py-2"><span>Election day</span><strong class="fs-5">@Model.ElectionDate.ToString("MMMM d, yyyy")</strong></span>
+        </div>
+    </div>
+</section>
+
+<h2 class="h4 section-title mb-3">Elected positions</h2>
+
+@if (!Model.Positions.Any())
+{
+    <div class="alert alert-info">No positions have been published for this municipality yet.</div>
+}
+
+@foreach (var position in Model.Positions.OrderBy(p => p.Name))
+{
+    <div class="card mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <div>
+                <h3 class="h5 mb-0">@position.Name</h3>
+                <span class="text-muted small">
+                    @position.SeatsAvailable seat@(position.SeatsAvailable == 1 ? "" : "s") available &middot;
+                    @position.Candidates.Count candidate@(position.Candidates.Count == 1 ? "" : "s")
+                </span>
+            </div>
+            <a class="btn btn-sm btn-outline-primary"
+               asp-controller="Candidates"
+               asp-action="Index"
+               asp-route-municipalityId="@Model.MunicipalityId"
+               asp-route-positionId="@position.PositionId">Open in directory</a>
+        </div>
+        @if (position.Candidates.Any())
+        {
+            <div class="list-group list-group-flush">
+                @foreach (var candidate in position.Candidates.OrderBy(c => c.Name))
+                {
+                    <a class="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                       asp-controller="Candidates" asp-action="Details" asp-route-id="@candidate.CandidateId">
+                        @if (!string.IsNullOrWhiteSpace(candidate.PhotoFileName))
+                        {
+                            <img src="~/uploads/candidates/@candidate.PhotoFileName" alt="" class="avatar" />
+                        }
+                        else
+                        {
+                            <span class="avatar avatar-initials" aria-hidden="true">@string.Concat(candidate.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0]))</span>
+                        }
+                        <span class="flex-grow-1">
+                            <strong>@candidate.Name</strong><br />
+                            <span class="text-muted small">@(candidate.Profile?.Length > 110 ? candidate.Profile[..110] + "…" : candidate.Profile)</span>
+                        </span>
+                        <span class="text-muted" aria-hidden="true">›</span>
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="card-body text-muted">No candidates have registered for this position yet.</div>
         }
     </div>
-</div>
-
-<h2 class="h4 mb-3">Elected positions</h2>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-    @foreach (var position in Model.Positions.OrderBy(p => p.Name))
-    {
-        <div class="col">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h3 class="h5 card-title">@position.Name</h3>
-                    <p class="card-text text-muted">@position.SeatsAvailable seat@(position.SeatsAvailable == 1 ? "" : "s") available</p>
-                    <p class="card-text">@position.Candidates.Count candidate@(position.Candidates.Count == 1 ? "" : "s")</p>
-                    <a class="btn btn-sm btn-outline-primary"
-                       asp-controller="Candidates"
-                       asp-action="Index"
-                       asp-route-municipalityId="@Model.MunicipalityId"
-                       asp-route-positionId="@position.PositionId">View candidates</a>
-                </div>
-            </div>
-        </div>
-    }
-</div>
+}

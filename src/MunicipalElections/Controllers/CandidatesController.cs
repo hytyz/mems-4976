@@ -11,11 +11,24 @@ public class CandidatesController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly VotingGuideService _guide;
+    private readonly MunicipalityAccessService _access;
 
-    public CandidatesController(ApplicationDbContext context, VotingGuideService guide)
+    public CandidatesController(ApplicationDbContext context, VotingGuideService guide, MunicipalityAccessService access)
     {
         _context = context;
         _guide = guide;
+        _access = access;
+    }
+
+    /// <summary>
+    /// Candidates visible to the current user. Visitors and SuperAdmins see everyone;
+    /// a signed-in municipality admin only sees the candidates of their own municipality.
+    /// </summary>
+    private async Task<IQueryable<Candidate>> VisibleCandidatesAsync()
+    {
+        var scope = await _access.GetRestrictedScopeAsync(User);
+        IQueryable<Candidate> query = _context.Candidates;
+        return scope == null ? query : query.Where(c => scope.Contains(c.Position!.MunicipalityId));
     }
 
     public async Task<IActionResult> Index(
@@ -25,7 +38,9 @@ public class CandidatesController : Controller
         int page = 1,
         int pageSize = 9)
     {
-        IQueryable<Candidate> query = _context.Candidates
+        pageSize = Math.Clamp(pageSize, 1, 48);
+
+        IQueryable<Candidate> query = (await VisibleCandidatesAsync())
             .Include(c => c.Position)
                 .ThenInclude(p => p!.Municipality);
 
@@ -67,6 +82,9 @@ public class CandidatesController : Controller
         ViewData["Total"] = total;
         ViewData["TotalPages"] = totalPages;
 
+        ViewData["CanUseGuide"] = _guide.IsAvailable;
+        ViewData["GuideIds"] = _guide.IsAvailable ? _guide.GetIds() : new List<int>();
+
         await PopulateFilterDropdownsAsync(municipalityId, positionId);
 
         return View(candidates);
@@ -74,7 +92,7 @@ public class CandidatesController : Controller
 
     public async Task<IActionResult> Details(int id)
     {
-        var candidate = await _context.Candidates
+        var candidate = await (await VisibleCandidatesAsync())
             .Include(c => c.Position)
                 .ThenInclude(p => p!.Municipality)
             .Include(c => c.Endorsements)
@@ -85,16 +103,24 @@ public class CandidatesController : Controller
             return NotFound();
         }
 
-        ViewData["InGuide"] = _guide.Contains(id);
+        ViewData["CanUseGuide"] = _guide.IsAvailable;
+        if (_guide.IsAvailable)
+        {
+            bool inGuide = _guide.Contains(id);
+            ViewData["InGuide"] = inGuide;
+            ViewData["GuideBlockReason"] = inGuide ? null : await _guide.GetBlockReasonAsync(candidate);
+        }
+
         return View(candidate);
     }
 
     public async Task<IActionResult> Compare(int? idA, int? idB)
     {
         var candidates = new List<Candidate>();
+        var visible = await VisibleCandidatesAsync();
         if (idA.HasValue)
         {
-            var a = await _context.Candidates
+            var a = await visible
                 .Include(c => c.Position).ThenInclude(p => p!.Municipality)
                 .Include(c => c.Endorsements)
                 .FirstOrDefaultAsync(c => c.CandidateId == idA.Value);
@@ -103,7 +129,7 @@ public class CandidatesController : Controller
 
         if (idB.HasValue)
         {
-            var b = await _context.Candidates
+            var b = await visible
                 .Include(c => c.Position).ThenInclude(p => p!.Municipality)
                 .Include(c => c.Endorsements)
                 .FirstOrDefaultAsync(c => c.CandidateId == idB.Value);
@@ -116,7 +142,11 @@ public class CandidatesController : Controller
 
     private async Task PopulateFilterDropdownsAsync(int? municipalityId, int? positionId)
     {
-        var municipalities = await _context.Municipalities.OrderBy(m => m.Name).ToListAsync();
+        var scope = await _access.GetRestrictedScopeAsync(User);
+        var municipalities = await _context.Municipalities
+            .Where(m => scope == null || scope.Contains(m.MunicipalityId))
+            .OrderBy(m => m.Name)
+            .ToListAsync();
         ViewData["Municipalities"] = new SelectList(municipalities, nameof(Municipality.MunicipalityId), nameof(Municipality.Name), municipalityId);
 
         if (municipalityId.HasValue)
@@ -135,7 +165,7 @@ public class CandidatesController : Controller
 
     private async Task PopulateCandidateDropdownsAsync(int? idA, int? idB)
     {
-        var candidates = await _context.Candidates
+        var candidates = await (await VisibleCandidatesAsync())
             .Include(c => c.Position).ThenInclude(p => p!.Municipality)
             .OrderBy(c => c.Name)
             .Select(c => new

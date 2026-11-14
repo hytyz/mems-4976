@@ -3,49 +3,86 @@
     ViewData["Title"] = "My Voting Guide";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">My Voting Guide</h1>
-    <div class="no-print">
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+        <h1 class="h2 mb-1">My Voting Guide</h1>
+        <p class="text-muted mb-0">The candidates you plan to vote for, ready to print or save.</p>
+    </div>
+    <div class="no-print d-flex flex-wrap gap-2">
         @if (Model.Any())
         {
-            <form class="d-inline" asp-action="Clear" method="post">
-                <button type="submit" class="btn btn-outline-danger me-2">Clear all</button>
+            <form asp-action="Clear" method="post" onsubmit="return confirm('Remove every candidate from your voting guide?');">
+                <button type="submit" class="btn btn-outline-danger">Clear all</button>
             </form>
-            <a class="btn btn-outline-primary me-2" asp-action="Print">Printer View</a>
+            <a class="btn btn-outline-primary" asp-action="Print">Printer view</a>
             <a class="btn btn-primary" asp-action="ExportPdf">Download PDF</a>
         }
     </div>
 </div>
 
+<div class="guide-rules mb-4 no-print">
+    <strong>How it works:</strong> a guide covers <strong>one municipality</strong>, and for each position you can
+    choose up to as many candidates as there are seats &mdash; one mayor, but several councillors.
+</div>
+
 @if (!Model.Any())
 {
-    <div class="alert alert-info">
-        Your guide is empty. Browse the <a asp-controller="Candidates" asp-action="Index">candidate directory</a> and add your preferred candidates.
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div class="display-4 mb-2" aria-hidden="true">🗳️</div>
+            <h2 class="h4">Your guide is empty</h2>
+            <p class="text-muted">Browse the candidates in your municipality and add the ones you intend to vote for.</p>
+            <a class="btn btn-primary" asp-controller="Candidates" asp-action="Index">Browse candidates</a>
+        </div>
     </div>
 }
 else
 {
     @foreach (var group in Model)
     {
-        <h2 class="h4 mt-4">@group.Municipality.Name <span class="text-muted fs-6">— Election @group.Municipality.ElectionDate.ToString("MMMM d, yyyy")</span></h2>
-        <div class="list-group mb-3">
-            @foreach (var candidate in group.Candidates)
-            {
-                <div class="list-group-item d-flex align-items-center gap-3">
-                    @if (!string.IsNullOrWhiteSpace(candidate.PhotoFileName))
-                    {
-                        <img src="~/uploads/candidates/@candidate.PhotoFileName" alt="@candidate.Name" style="width:56px;height:56px;object-fit:cover" class="rounded" />
-                    }
-                    <div class="flex-grow-1">
-                        <strong>@candidate.Name</strong><br />
-                        <span class="text-muted">@candidate.Position!.Name</span>
-                    </div>
-                    <form class="no-print" asp-action="Remove" method="post">
-                        <input type="hidden" name="candidateId" value="@candidate.CandidateId" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
-                    </form>
-                </div>
-            }
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h4 section-title mb-0">@group.Municipality.Name</h2>
+            <span class="meta-pill">📅 Election day: @group.Municipality.ElectionDate.ToString("MMMM d, yyyy")</span>
         </div>
+
+        @foreach (var position in group.Candidates.GroupBy(c => c.Position!).OrderBy(g => g.Key.Name))
+        {
+            int chosen = position.Count();
+            int seats = position.Key.SeatsAvailable;
+            <div class="card mb-4">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+                    <h3 class="h5 mb-0">@position.Key.Name</h3>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted">@chosen of @seats seat@(seats == 1 ? "" : "s") chosen</span>
+                        <div class="seat-meter" role="presentation"><span style="width:@(Math.Min(100, chosen * 100 / Math.Max(1, seats)))%"></span></div>
+                    </div>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var candidate in position)
+                    {
+                        <div class="list-group-item d-flex align-items-center gap-3">
+                            @if (!string.IsNullOrWhiteSpace(candidate.PhotoFileName))
+                            {
+                                <img src="~/uploads/candidates/@candidate.PhotoFileName" alt="" class="avatar" />
+                            }
+                            else
+                            {
+                                <span class="avatar avatar-initials" aria-hidden="true">@string.Concat(candidate.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => w[0]))</span>
+                            }
+                            <div class="flex-grow-1">
+                                <a class="fw-semibold text-decoration-none" asp-controller="Candidates" asp-action="Details" asp-route-id="@candidate.CandidateId">@candidate.Name</a><br />
+                                <span class="text-muted small">@(candidate.Profile?.Length > 110 ? candidate.Profile[..110] + "…" : candidate.Profile)</span>
+                            </div>
+                            <form class="no-print" asp-action="Remove" method="post">
+                                <input type="hidden" name="candidateId" value="@candidate.CandidateId" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <a class="btn btn-outline-primary no-print" asp-controller="Candidates" asp-action="Index" asp-route-municipalityId="@group.Municipality.MunicipalityId">Add more candidates from @group.Municipality.Name</a>
     }
 }
