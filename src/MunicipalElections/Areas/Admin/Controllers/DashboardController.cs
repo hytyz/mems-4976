@@ -7,7 +7,7 @@ using MunicipalElections.Services;
 namespace MunicipalElections.Areas.Admin.Controllers;
 
 [Area("Admin")]
-[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.MunicipalityAdmin}")]
+[Authorize(Policy = Policies.AdminArea)]
 public class DashboardController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -21,19 +21,26 @@ public class DashboardController : Controller
 
     public async Task<IActionResult> Index()
     {
+        // Everything on the dashboard is limited to the municipalities this user administers.
         var municipalityIds = await _access.GetMunicipalityIdsAsync(User);
+        bool isSuperAdmin = _access.IsSuperAdmin(User);
 
-        var municipalityCount = municipalityIds.Count;
-        var positionCount = await _context.Positions
-            .CountAsync(p => municipalityIds.Contains(p.MunicipalityId));
-        var candidateCount = await _context.Candidates
-            .CountAsync(c => municipalityIds.Contains(c.Position!.MunicipalityId));
+        var municipalities = await _context.Municipalities
+            .Where(m => municipalityIds.Contains(m.MunicipalityId))
+            .Include(m => m.Positions)
+                .ThenInclude(p => p.Candidates)
+            .OrderBy(m => m.Name)
+            .ToListAsync();
 
-        ViewData["MunicipalityCount"] = municipalityCount;
-        ViewData["PositionCount"] = positionCount;
-        ViewData["CandidateCount"] = candidateCount;
-        ViewData["IsSuperAdmin"] = _access.IsSuperAdmin(User);
+        ViewData["MunicipalityCount"] = municipalities.Count;
+        ViewData["PositionCount"] = municipalities.Sum(m => m.Positions.Count);
+        ViewData["CandidateCount"] = municipalities.Sum(m => m.Positions.Sum(p => p.Candidates.Count));
+        ViewData["IsSuperAdmin"] = isSuperAdmin;
+        if (isSuperAdmin)
+        {
+            ViewData["UserCount"] = await _context.Users.CountAsync();
+        }
 
-        return View();
+        return View(municipalities);
     }
 }

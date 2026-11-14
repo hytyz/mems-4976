@@ -1,36 +1,86 @@
 @model Municipality
 @{
     ViewData["Title"] = Model.Name;
+    bool isSuperAdmin = User.IsInRole(Roles.SuperAdmin);
+    var admins = (ViewData["Admins"] as List<string>) ?? new List<string>();
 }
 
-<h1 class="h3">@Model.Name</h1>
-<hr />
-<div class="d-flex gap-3 align-items-start mb-4">
-    @if (!string.IsNullOrWhiteSpace(Model.LogoFileName))
-    {
-        <img src="~/uploads/municipalities/@Model.LogoFileName" alt="@Model.Name logo" class="municipality-logo" />
-    }
-    <dl class="row mb-0 flex-grow-1">
-        <dt class="col-sm-3">Province</dt><dd class="col-sm-9">@Model.Province</dd>
-        <dt class="col-sm-3">Election Date</dt><dd class="col-sm-9">@Model.ElectionDate.ToString("MMMM d, yyyy")</dd>
-        <dt class="col-sm-3">Description</dt><dd class="col-sm-9">@Model.Description</dd>
-    </dl>
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="d-flex gap-3 align-items-center">
+        @if (!string.IsNullOrWhiteSpace(Model.LogoFileName))
+        {
+            <img src="~/uploads/municipalities/@Model.LogoFileName" alt="@Model.Name logo" class="muni-logo-sm" />
+        }
+        <h1 class="h2 mb-0">@Model.Name</h1>
+    </div>
+    <div>
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.MunicipalityId">Edit</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Back to list</a>
+    </div>
 </div>
 
-<h2 class="h5">Positions</h2>
-@if (Model.Positions.Any())
-{
-    <ul class="list-group mb-3">
-        @foreach (var position in Model.Positions)
-        {
-            <li class="list-group-item d-flex justify-content-between">@position.Name <span class="badge text-bg-secondary">@position.SeatsAvailable seat@(position.SeatsAvailable == 1 ? "" : "s")</span></li>
-        }
-    </ul>
-}
-else
-{
-    <p class="text-muted">No positions yet.</p>
-}
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-header fw-semibold">Details</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Province</dt><dd class="col-sm-8">@Model.Province</dd>
+                    <dt class="col-sm-4">Election date</dt><dd class="col-sm-8">@Model.ElectionDate.ToString("MMMM d, yyyy")</dd>
+                    <dt class="col-sm-4">Description</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Description) ? "—" : Model.Description)</dd>
+                </dl>
+            </div>
+        </div>
 
-<a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.MunicipalityId">Edit</a>
-<a class="btn btn-outline-secondary" asp-action="Index">Back to List</a>
+        <div class="card">
+            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                Positions
+                <a class="btn btn-sm btn-outline-primary" asp-controller="Positions" asp-action="Create">+ New position</a>
+            </div>
+            @if (Model.Positions.Any())
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var position in Model.Positions.OrderBy(p => p.Name))
+                    {
+                        <li class="list-group-item d-flex justify-content-between">
+                            <a asp-controller="Positions" asp-action="Details" asp-route-id="@position.PositionId">@position.Name</a>
+                            <span class="badge text-bg-secondary align-self-center">@position.SeatsAvailable seat@(position.SeatsAvailable == 1 ? "" : "s")</span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="card-body text-muted">No positions yet.</div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                Administrators
+                @if (isSuperAdmin)
+                {
+                    <a class="btn btn-sm btn-outline-primary" asp-controller="Users" asp-action="Create" asp-route-municipalityId="@Model.MunicipalityId">+ Add administrator</a>
+                }
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">Members of the group <span class="badge text-bg-secondary">@Model.AdminRoleName</span> manage this municipality and nothing else.</p>
+                @if (admins.Any())
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var admin in admins)
+                        {
+                            <li>👤 @admin</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="mb-0 text-warning-emphasis">This municipality has no administrator yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

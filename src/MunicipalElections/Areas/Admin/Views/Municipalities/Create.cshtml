@@ -3,42 +3,73 @@
     ViewData["Title"] = "Create Municipality";
 }
 
-<h1 class="h3">Create Municipality</h1>
-<hr />
+<div class="page-header">
+    <h1 class="h2 mb-0">Create Municipality</h1>
+</div>
 
-<form asp-action="Create" method="post" enctype="multipart/form-data">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label asp-for="Name" class="form-label"></label>
-            <input asp-for="Name" class="form-control" />
-            <span asp-validation-for="Name" class="text-danger"></span>
-        </div>
-        <div class="col-md-6">
-            <label asp-for="Province" class="form-label"></label>
-            <input asp-for="Province" class="form-control" />
-            <span asp-validation-for="Province" class="text-danger"></span>
-        </div>
-        <div class="col-md-6">
-            <label asp-for="ElectionDate" class="form-label"></label>
-            <input asp-for="ElectionDate" class="form-control" type="date" />
-            <span asp-validation-for="ElectionDate" class="text-danger"></span>
-        </div>
-        <div class="col-md-6">
-            <label asp-for="LogoFileName" class="form-label">Logo image</label>
-            <input type="file" name="logoFile" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
-            <span asp-validation-for="LogoFileName" class="text-danger"></span>
-        </div>
-        <div class="col-12">
-            <label asp-for="Description" class="form-label"></label>
-            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
-            <span asp-validation-for="Description" class="text-danger"></span>
+<form asp-action="Create" method="post" enctype="multipart/form-data" class="form-card">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">Municipality</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Province" class="form-label"></label>
+                    <input asp-for="Province" class="form-control" />
+                    <span asp-validation-for="Province" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="ElectionDate" class="form-label">Election date</label>
+                    <input asp-for="ElectionDate" class="form-control" type="date" />
+                    <span asp-validation-for="ElectionDate" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="LogoFileName" class="form-label">Logo image</label>
+                    <input type="file" name="logoFile" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+                    <div class="form-text">JPG, PNG, GIF or WEBP, up to 5 MB.</div>
+                    <span asp-validation-for="LogoFileName" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Description" class="form-label"></label>
+                    <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="mt-4">
-        <button type="submit" class="btn btn-primary">Create</button>
-        <a class="btn btn-outline-secondary" asp-action="Index">Back to List</a>
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">Municipality administrator <span class="text-muted fw-normal">(optional)</span></div>
+        <div class="card-body">
+            <p class="text-muted small">
+                A dedicated admin group named "<em>Municipality name</em> Admin" is created with the municipality.
+                Fill these in to also create its first administrator, who will only be able to manage this municipality.
+                You can add more administrators later under <strong>Users</strong>.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="adminUserName" class="form-label">Admin username</label>
+                    <input type="text" id="adminUserName" name="adminUserName" class="form-control" value="@ViewData["AdminUserName"]" autocomplete="off" maxlength="50" />
+                    <span class="text-danger">@Html.ValidationMessage("adminUserName")</span>
+                </div>
+                <div class="col-md-6">
+                    <label for="adminPassword" class="form-label">Admin password</label>
+                    <input type="password" id="adminPassword" name="adminPassword" class="form-control" autocomplete="new-password" />
+                    <div class="form-text">At least 6 characters.</div>
+                    <span class="text-danger">@Html.ValidationMessage("adminPassword")</span>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <button type="submit" class="btn btn-primary">Create municipality</button>
+    <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
 </form>
 
 @section Scripts {

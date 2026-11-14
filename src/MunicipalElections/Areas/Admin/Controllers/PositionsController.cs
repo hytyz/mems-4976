@@ -9,7 +9,7 @@ using MunicipalElections.Services;
 namespace MunicipalElections.Areas.Admin.Controllers;
 
 [Area("Admin")]
-[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.MunicipalityAdmin}")]
+[Authorize(Policy = Policies.AdminArea)]
 public class PositionsController : Controller
 {
     private readonly ApplicationDbContext _context;
