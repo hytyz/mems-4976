@@ -18,8 +18,8 @@ Documentation: docs/Assignment2-Documentation.pdf (source: Assignment2-Documenta
   docs/copilot-usage.md      GitHub Copilot usage
   docs/screenshots/a2/       Screenshots (Aspire dashboard, admin site, public site, API testing, SQL Server)
 
-The Assignment 1 MVC project (src/MunicipalElections, MunicipalElections.slnx) is kept for reference
-and is not part of MEMS.slnx.
+The Assignment 1 MVC project has been removed; it remains in the git history. Its documentation is
+kept for reference as docs/Assignment1-Documentation.pdf.
 
 Requirements
 ------------
@@ -30,6 +30,9 @@ Requirements
 Running
 -------
   dotnet run --project src/MEMS.AppHost
+
+or, from a bash shell (Git Bash on Windows), scripts/run.sh, which checks the requirements above
+(and uses Podman if Docker is not running) before starting the AppHost.
 
 Open the Aspire dashboard link printed in the console. From there:
   Admin site    https://localhost:7196/admin

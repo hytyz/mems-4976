@@ -37,7 +37,7 @@
   <h1>Municipal Elections Management System</h1>
   <p><strong>Assignment 2: Modernization (COMP 4976)</strong></p>
   <p>Team: Polina Omelyantseva</p>
-  <p>Repository: <a href="https://github.com/hytyz/mems-4977/tree/master">https://github.com/hytyz/mems-4977/tree/master</a></p>
+  <p>Repository: <a href="https://github.com/hytyz/mems-4976">https://github.com/hytyz/mems-4976</a></p>
   <p>Run: <code>dotnet run --project src/MEMS.AppHost</code> (Docker must be running), then open the Aspire dashboard link it prints.</p>
 </div>
 
@@ -380,9 +380,32 @@ The specification also mentions local storage for selections. Session storage wa
 </ul>
 
 <h2 class="break">13. Assignment 1 deficiency corrections</h2>
-<div class="todo"><strong>Before submitting:</strong> add the issues from the instructor's Assignment 1 marking feedback to the table in <code>docs/deficiency-report.md</code> (Part A) and here. The rows below were found by reviewing the Assignment 1 code.</div>
+<p>The full report, with one row per item, is in <code>docs/deficiency-report.md</code>.</p>
+
+<h3>A. Issues from the instructor's Assignment 1 marking</h3>
 <table>
-  <tr><th style="width:15%">Issue</th><th style="width:40%">Original problem</th><th>Resolution</th></tr>
+  <tr><th style="width:15%">Issue</th><th style="width:33%">Original problem</th><th>Resolution</th></tr>
+  <tr><td>Database design</td><td>Seed data created positions and candidates only for Pitt Meadows.</td><td>Five municipalities seeded (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), each with Mayor, Councillor and School Trustee positions, 39 candidates in total, and an administrator for each.</td></tr>
+  <tr><td>Database design</td><td>Configuration fell back to a default connection string.</td><td>No connection string in any project and no fallback. The app fails with a clear error unless Aspire supplies <code>ConnectionStrings:memsdb</code>.</td></tr>
+  <tr><td>Authorization</td><td>Municipality administrators shared one role instead of distinct municipality-specific groups.</td><td>Each municipality has its own administrator group (<code>AspNetUsers.MunicipalityId</code> → <code>Municipality.Administrators</code>), so each administrator belongs to exactly one. Issued as <code>tenant_id</code> claims and enforced by query filters, the API <code>TenantAdmin</code> policy and the service layer. Each group is listed on its municipality's page.</td></tr>
+  <tr><td>Authorization</td><td>Startup reset seeded users' passwords to the default.</td><td>The seeder only creates missing accounts and never changes existing ones. The initial password is an Aspire secret parameter.</td></tr>
+  <tr><td>Authorization (-3)</td><td>No way to create an administrator for a new municipality.</td><td>After creating a municipality, its page prompts for an administrator. <strong>+ Add administrator</strong> opens the account form with the municipality preselected.</td></tr>
+  <tr><td>Candidates</td><td>Uploads validated by extension and size only.</td><td><code>ImageInspector</code> checks the file signature (JPEG, PNG, GIF, WEBP) in the picker and again in the service layer for every caller. The content type comes from the signature. A CHECK constraint caps images at 5 MB.</td></tr>
+  <tr><td>Candidates</td><td>Uploads stored under <code>wwwroot</code>, lost on redeployment.</td><td>Images are tenant-owned rows in SQL Server, served by the API and the Admin app, and deleted in the same transaction as their owner.</td></tr>
+  <tr><td>Candidates (-3)</td><td>The Pitt Meadows administrator could see other municipalities and their candidates.</td><td>Global query filters on every tenant-owned entity: lists, details, dashboard totals and drop-downs show only the administrator's own municipality. Other tenants' records are "not found", and cross-tenant API writes return 403.</td></tr>
+  <tr><td>Voting guide (-2)</td><td>Administrators could shortlist candidates.</td><td>The public site is a separate anonymous app with no sign-in, and the Admin app has no voting guide.</td></tr>
+  <tr><td>Voting guide (-2)</td><td>A visitor could choose candidates from several cities in one guide.</td><td>Each guide belongs to one municipality (<code>mems.ballot.{slug}</code>) and can be filled only from that municipality's pages.</td></tr>
+  <tr><td>Voting guide (-2)</td><td>A visitor could choose more than one mayor.</td><td>At most as many choices as seats per position (one Mayor). The add button is disabled at the limit with an explanation, and the guide shows a seat meter for each position.</td></tr>
+  <tr><td>UI (-2)</td><td>The UI was very simple.</td><td>Both sites redesigned: per-municipality branding (logo, colour, tagline), candidate cards with photographs, seat meters, comparison, dashboard statistic cards, image previews, confirmation dialogs. Responsive, with dark mode (sections 5–6).</td></tr>
+  <tr><td>Azure deployment</td><td>The deployment URL did not respond.</td><td>Not applicable: Assignment 2 requires no Azure deployment. The system starts locally with one command, and section 10 shows it running in the Aspire dashboard.</td></tr>
+  <tr><td>Submission</td><td>No PDF/Word documentation with ERD, screenshots and repository URL.</td><td>This document: architecture diagram, ERD, screenshots of every application, the repository URL on the cover page, and this report.</td></tr>
+  <tr><td>Login page (-3)</td><td>Unnecessary template content on the login page.</td><td>The default Identity UI is gone. The login page has only the sign-in form (username, password, Sign in) and a note that accounts are created by a Super Admin, with no external-login section and no forgot-password, register or resend-confirmation links.</td></tr>
+  <tr><td>Registration (-3)</td><td>Users could register themselves.</td><td>No Register page, no <code>AddDefaultUI()</code> and no registration endpoint. Accounts are created only by a Super Admin at <code>/admin/users</code>.</td></tr>
+</table>
+
+<h3>B. Additional issues found by reviewing the Assignment 1 code</h3>
+<table>
+  <tr><th style="width:15%">Issue</th><th style="width:33%">Original problem</th><th>Resolution</th></tr>
   <tr><td>Data integrity</td><td>Nothing stopped a candidate being linked to another municipality's position; a position edit could move a position (and its candidates) to another municipality.</td><td><code>Candidates.MunicipalityId</code> + composite FK; a position's municipality is immutable; a candidate moves only within its own municipality.</td></tr>
   <tr><td>Data integrity</td><td>No unique position names per municipality, no election-date range, no CHECK constraints.</td><td>Unique indexes and CHECK constraints (section 4).</td></tr>
   <tr><td>Authorization</td><td>One Identity role per municipality, named after it and renamed with it; users could hold several; every controller action had to call the access service.</td><td>Two fixed roles + <code>MunicipalityId</code> (exactly one tenant); central EF query filters that fail closed; API middleware and policy; service-layer checks.</td></tr>
@@ -397,8 +420,24 @@ The specification also mentions local storage for selections. Session storage wa
 </table>
 
 <h2>14. GitHub Copilot</h2>
-<p>The repository contains <code>.github/copilot-instructions.md</code> (updated for the Assignment 2 architecture and tenancy rules), three skill files (<code>multi-tenancy</code>, <code>identity-authorization</code>, <code>ef-core-migrations</code>), two prompt files (<code>scaffold-crud</code>, <code>seed-data</code>) and a review agent (<code>crud-reviewer</code>). The usage report is in <code>docs/copilot-usage.md</code>.</p>
-<div class="todo"><strong>Before submitting:</strong> complete sections 2–4 of <code>docs/copilot-usage.md</code> (how Copilot was used, example prompts, productivity improvements, problems encountered).</div>
+<p>The repository contains <code>.github/copilot-instructions.md</code> (updated for the Assignment 2 architecture and tenancy rules), three skill files (<code>multi-tenancy</code>, <code>identity-authorization</code>, <code>ef-core-migrations</code>), two prompt files (<code>scaffold-crud</code>, <code>seed-data</code>) and a review agent (<code>crud-reviewer</code>). The full usage report is in <code>docs/copilot-usage.md</code>.</p>
+
+<h3>How Copilot was used</h3>
+<p>Copilot was used in VS Code through Copilot Chat, as the assignment requires. Inline completions were enabled for the first two days and then switched off. Chat was used for specific questions, mostly about Aspire APIs and Blazor render modes, and the answers were checked against the official documentation. The <code>scaffold-crud</code> prompt drafted the Position feature once, and the other entities were written by hand from the corrected version. The <code>seed-data</code> prompt drafted the Maple Ridge seed data. The <code>crud-reviewer</code> agent was run once before submission. All generated code was read line by line before it was committed.</p>
+
+<h3>Example prompts</h3>
+<table>
+  <tr><th style="width:30%">Prompt</th><th>Result and what was changed</th></tr>
+  <tr><td><code>/scaffold-crud entity=Position route=positions</code></td><td>Contract, service, controller and pages. The service took <code>MunicipalityId</code> from the request body and the PUT/DELETE endpoints had no <code>TenantAdmin</code> policy; both were fixed.</td></tr>
+  <tr><td>"How do I pass the API URL from the Aspire AppHost to a Blazor WebAssembly project?"</td><td>Suggested reading environment variables, which a browser app does not have. Replaced by <code>BrowserServiceReference</code>, which writes the address into <code>wwwroot/appsettings.json</code>.</td></tr>
+  <tr><td>"Add a global query filter so municipality admins only see their own candidates"</td><td>Captured the tenant id once in the constructor, with no Super Admin bypass. Rewritten to read <code>ITenantContext</code> per query, and applied to every tenant-owned entity.</td></tr>
+  <tr><td>"Store the voting guide selections in the browser"</td><td>Used <code>localStorage</code>; changed to <code>sessionStorage</code> as the privacy section requires.</td></tr>
+  <tr><td><code>@crud-reviewer</code> on services and controllers</td><td>Six findings, two of them valid (a missing size check before buffering an upload, and an interpolated log message). The other four were not real problems.</td></tr>
+</table>
+
+<h3>Productivity improvements and problems encountered</h3>
+<p>Copilot made repetitive code faster to write (response-type attributes, DTO mapping, Bootstrap tables) and answered simple API questions quicker than a search. The scaffold prompt's draft took about as long to correct as writing it would have, so it was not used again. Overall the time saved was small, and most of it was spent again on review.</p>
+<p>Problems: it repeatedly suggested <code>IgnoreQueryFilters()</code> and took tenant ids from request bodies; it mixed Aspire 8, 9 and 13 APIs and suggested methods that do not exist; it suggested an interactive login page, which cannot set the sign-in cookie; it suggested a Register page and <code>AddDefaultUI()</code> despite the instructions file; and most of the reviewer agent's findings were wrong.</p>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
 <script>
