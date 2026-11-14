@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MEMS Assignment 2 - Documentation</title>
+<style>
+  @page { size: Letter; margin: 16mm 14mm; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1b2430; line-height: 1.45; font-size: 10.5pt; max-width: 920px; margin: 0 auto; padding: 24px; }
+  h1 { color: #163b68; font-size: 25pt; margin: 0 0 4px; }
+  h2 { color: #163b68; border-bottom: 2px solid #f2a541; padding-bottom: 4px; margin-top: 30px; page-break-after: avoid; }
+  h3 { color: #1d4e89; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; font-size: 9.5pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border: 1px solid #cfd6df; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef2f8; }
+  code { background: #eef2f8; padding: 1px 4px; border-radius: 4px; font-size: 9pt; }
+  pre { background: #eef2f8; padding: 10px 12px; border-radius: 6px; font-size: 8.8pt; white-space: pre-wrap; page-break-inside: avoid; }
+  figure { margin: 12px 0 20px; page-break-inside: avoid; }
+  figure img { display: block; max-width: 100%; max-height: 112mm; margin: 0 auto; border: 1px solid #cfd6df; border-radius: 6px; }
+  figure.tall img { max-height: 200mm; }
+  figcaption { text-align: center; font-size: 9pt; color: #4a5562; margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid2 figure img { max-height: 90mm; }
+  .cover { border-left: 6px solid #f2a541; padding: 6px 0 6px 18px; margin-bottom: 20px; }
+  .cover p { margin: 2px 0; }
+  .todo { border: 2px dashed #c0392b; background: #fdf1ef; padding: 10px 14px; border-radius: 6px; }
+  .note { border-left: 4px solid #1d4e89; background: #eef2f8; padding: 8px 12px; border-radius: 4px; }
+  .break { page-break-before: always; }
+  a { color: #1d4e89; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .mermaid { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Municipal Elections Management System</h1>
+  <p><strong>Assignment 2: Modernization (COMP 4976)</strong></p>
+  <p>Team: Polina Omelyantseva</p>
+  <p>Repository: <a href="https://github.com/hytyz/mems-4977/tree/master">https://github.com/hytyz/mems-4977/tree/master</a></p>
+  <p>Run: <code>dotnet run --project src/MEMS.AppHost</code> (Docker must be running), then open the Aspire dashboard link it prints.</p>
+</div>
+
+<h2>1. Overview</h2>
+<p>Assignment 1's single ASP.NET Core MVC application is now a multi-tenant, cloud-native .NET 10 solution
+orchestrated by .NET Aspire. Each municipality is a <strong>tenant</strong> identified by a URL slug
+(<code>/burnaby</code>, <code>/surrey</code>, <code>/richmond</code>). Tenants are rows of data, not applications:
+a Super Admin creates a new municipality in the admin site and its public site works at once.</p>
+
+<table>
+  <tr><th style="width:22%">Project</th><th style="width:22%">Technology</th><th>Responsibility</th></tr>
+  <tr><td><code>MEMS.AppHost</code></td><td>.NET Aspire 13</td><td>Starts SQL Server (container + volume), the API, the Admin app and the Public app. Supplies connection strings, secrets (parameters) and service discovery.</td></tr>
+  <tr><td><code>MEMS.ServiceDefaults</code></td><td>OpenTelemetry, health checks</td><td>Logging, tracing and metrics exported to the Aspire dashboard; <code>/health</code> and <code>/alive</code>; HTTP resilience and service discovery.</td></tr>
+  <tr><td><code>MEMS.Admin</code></td><td>Blazor Server + Identity</td><td>Shared administration site at <code>/admin</code> for every municipality.</td></tr>
+  <tr><td><code>MEMS.Public</code></td><td>Blazor WebAssembly</td><td>Public site, one experience per tenant at <code>/{tenant}</code>. Reads data only through the API.</td></tr>
+  <tr><td><code>MEMS.Api</code></td><td>ASP.NET Core Web API</td><td>REST API under <code>/api/{tenant}/…</code>, JWT authentication, OpenAPI + Swagger UI.</td></tr>
+  <tr><td><code>MEMS.Data</code></td><td>EF Core 10 (SQL Server)</td><td>Entities, tenant-filtered <code>DbContext</code>, migrations, seed data, service layer.</td></tr>
+  <tr><td><code>MEMS.Shared</code></td><td>.NET class library</td><td>DTOs and input contracts with validation attributes, shared by all projects.</td></tr>
+</table>
+
+<h3>Seeded accounts (initial password <code>P@$$w0rd</code>)</h3>
+<table>
+  <tr><th>Username</th><th>Role</th><th>Tenant</th></tr>
+  <tr><td><code>super</code></td><td>Super Admin</td><td>All</td></tr>
+  <tr><td><code>burnabyadmin</code></td><td>Municipality Administrator</td><td>Burnaby</td></tr>
+  <tr><td><code>surreyadmin</code></td><td>Municipality Administrator</td><td>Surrey</td></tr>
+  <tr><td><code>richmondadmin</code></td><td>Municipality Administrator</td><td>Richmond</td></tr>
+  <tr><td><code>pm</code></td><td>Municipality Administrator (Assignment 1 user)</td><td>Pitt Meadows</td></tr>
+</table>
+<p>Seed data: 5 municipalities (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), 15 positions (Mayor, Councillor and School Trustee for each), 39 candidates and 5 endorsements.
+Usernames are case-insensitive, so <code>Super</code> and <code>Burnabyadmin</code> also work.</p>
+
+<h2 class="break">2. System architecture</h2>
+<figure>
+<svg viewBox="0 0 900 620" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+  </defs>
+  <!-- Browsers -->
+  <rect x="20" y="14" width="420" height="120" rx="12" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="34" y="36" font-size="13" font-weight="700" fill="#0f172a">Visitor's browser</text>
+  <rect x="34" y="46" width="250" height="76" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="46" y="66" font-size="12" font-weight="700" fill="#312e81">MEMS.Public (Blazor WASM runtime)</text>
+  <rect x="46" y="76" width="70" height="20" rx="5" fill="#1d4e89"/><text x="81" y="90" font-size="10" fill="#fff" text-anchor="middle">/burnaby</text>
+  <rect x="122" y="76" width="70" height="20" rx="5" fill="#0f766e"/><text x="157" y="90" font-size="10" fill="#fff" text-anchor="middle">/surrey</text>
+  <rect x="198" y="76" width="74" height="20" rx="5" fill="#b3261e"/><text x="235" y="90" font-size="10" fill="#fff" text-anchor="middle">/richmond</text>
+  <text x="46" y="114" font-size="9.5" fill="#334155">tenant resolved from the URL · one app, many tenants</text>
+  <rect x="296" y="46" width="132" height="76" rx="8" fill="#fef3c7" stroke="#d97706"/>
+  <text x="362" y="66" font-size="11" font-weight="700" fill="#78350f" text-anchor="middle">sessionStorage</text>
+  <text x="362" y="82" font-size="9.5" fill="#78350f" text-anchor="middle">mems.ballot.{slug}</text>
+  <text x="362" y="98" font-size="9.5" fill="#78350f" text-anchor="middle">ballot never leaves</text>
+  <text x="362" y="111" font-size="9.5" fill="#78350f" text-anchor="middle">the browser</text>
+
+  <rect x="480" y="14" width="400" height="120" rx="12" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="494" y="36" font-size="13" font-weight="700" fill="#0f172a">Administrator's browser</text>
+  <text x="494" y="58" font-size="10.5" fill="#334155">Super Admin: all tenants</text>
+  <text x="494" y="76" font-size="10.5" fill="#334155">burnabyadmin / surreyadmin / richmondadmin:</text>
+  <text x="494" y="92" font-size="10.5" fill="#334155">exactly one tenant each</text>
+  <text x="494" y="116" font-size="10" fill="#475569">Identity cookie + Blazor SignalR circuit</text>
+
+  <!-- Aspire boundary -->
+  <rect x="10" y="170" width="880" height="440" rx="16" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="26" y="194" font-size="13" font-weight="700" fill="#5b21b6">.NET Aspire AppHost: orchestration, configuration, service discovery</text>
+
+  <!-- Public host -->
+  <rect x="34" y="214" width="190" height="74" rx="10" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="129" y="236" font-size="12" font-weight="700" fill="#312e81" text-anchor="middle">public</text>
+  <text x="129" y="254" font-size="10" fill="#312e81" text-anchor="middle">serves the WASM files</text>
+  <text x="129" y="270" font-size="10" fill="#312e81" text-anchor="middle">+ appsettings.json (API address)</text>
+
+  <!-- API -->
+  <rect x="260" y="214" width="300" height="160" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="410" y="236" font-size="12" font-weight="700" fill="#7c2d12" text-anchor="middle">api: ASP.NET Core Web API</text>
+  <text x="274" y="258" font-size="10" fill="#7c2d12">GET /api/burnaby/candidates</text>
+  <text x="274" y="276" font-size="10" fill="#7c2d12">1. TenantResolutionMiddleware: slug → tenant (404 if unknown)</text>
+  <text x="274" y="294" font-size="10" fill="#7c2d12">2. JWT bearer + TenantAdmin policy: 403 cross-tenant writes</text>
+  <text x="274" y="312" font-size="10" fill="#7c2d12">3. Service layer re-validates input</text>
+  <text x="274" y="330" font-size="10" fill="#7c2d12">4. EF Core query filter: WHERE MunicipalityId = @tenant</text>
+  <text x="274" y="352" font-size="10" fill="#7c2d12">OpenAPI /swagger · ProblemDetails · migrations + seed</text>
+
+  <!-- Admin -->
+  <rect x="596" y="214" width="270" height="160" rx="10" fill="#ecfdf5" stroke="#059669"/>
+  <text x="731" y="236" font-size="12" font-weight="700" fill="#064e3b" text-anchor="middle">admin: Blazor Server (/admin)</text>
+  <text x="610" y="258" font-size="10" fill="#064e3b">Shared by all municipalities</text>
+  <text x="610" y="276" font-size="10" fill="#064e3b">ASP.NET Core Identity (roles + tenant_id)</text>
+  <text x="610" y="294" font-size="10" fill="#064e3b">CircuitTenantInitializer → ITenantContext</text>
+  <text x="610" y="312" font-size="10" fill="#064e3b">Same service layer + query filters</text>
+  <text x="610" y="330" font-size="10" fill="#064e3b">Dashboard · municipalities · positions</text>
+  <text x="610" y="348" font-size="10" fill="#064e3b">candidates · administrators · uploads</text>
+
+  <!-- SQL -->
+  <rect x="260" y="414" width="606" height="170" rx="10" fill="#fdf4ff" stroke="#a21caf"/>
+  <text x="563" y="436" font-size="12" font-weight="700" fill="#701a75" text-anchor="middle">sql: SQL Server 2022 container · database memsdb · EF Core migrations</text>
+  <text x="276" y="458" font-size="10" fill="#701a75">Every tenant-owned row carries MunicipalityId (row-level isolation):</text>
+  <rect x="276" y="468" width="180" height="96" rx="6" fill="#1d4e89" opacity="0.92"/>
+  <text x="366" y="488" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Burnaby (1)</text>
+  <text x="366" y="506" font-size="9.5" fill="#fff" text-anchor="middle">positions · candidates</text>
+  <text x="366" y="522" font-size="9.5" fill="#fff" text-anchor="middle">images · burnabyadmin</text>
+  <rect x="470" y="468" width="180" height="96" rx="6" fill="#0f766e" opacity="0.92"/>
+  <text x="560" y="488" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Surrey (2)</text>
+  <text x="560" y="506" font-size="9.5" fill="#fff" text-anchor="middle">positions · candidates</text>
+  <text x="560" y="522" font-size="9.5" fill="#fff" text-anchor="middle">images · surreyadmin</text>
+  <rect x="664" y="468" width="186" height="96" rx="6" fill="#b3261e" opacity="0.92"/>
+  <text x="757" y="488" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Richmond (3)</text>
+  <text x="757" y="506" font-size="9.5" fill="#fff" text-anchor="middle">positions · candidates</text>
+  <text x="757" y="522" font-size="9.5" fill="#fff" text-anchor="middle">images · richmondadmin</text>
+  <text x="563" y="578" font-size="9.5" fill="#701a75" text-anchor="middle">No ballot, selection or vote-total tables</text>
+
+  <!-- Dashboard -->
+  <rect x="34" y="414" width="190" height="170" rx="10" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="129" y="436" font-size="12" font-weight="700" fill="#4c1d95" text-anchor="middle">Aspire dashboard</text>
+  <text x="129" y="460" font-size="10" fill="#4c1d95" text-anchor="middle">structured logs</text>
+  <text x="129" y="478" font-size="10" fill="#4c1d95" text-anchor="middle">distributed traces</text>
+  <text x="129" y="496" font-size="10" fill="#4c1d95" text-anchor="middle">metrics</text>
+  <text x="129" y="514" font-size="10" fill="#4c1d95" text-anchor="middle">health checks</text>
+  <text x="129" y="540" font-size="9.5" fill="#4c1d95" text-anchor="middle">(OTLP from api and admin)</text>
+  <text x="129" y="556" font-size="9.5" fill="#4c1d95" text-anchor="middle">parameters: sql password,</text>
+  <text x="129" y="570" font-size="9.5" fill="#4c1d95" text-anchor="middle">seed password, JWT key</text>
+
+  <!-- Arrows -->
+  <line x1="129" y1="134" x2="129" y2="212" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="136" y="160" font-size="9.5" fill="#334155">download app</text>
+  <line x1="250" y1="122" x2="330" y2="212" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="290" y="150" font-size="9.5" fill="#334155">HTTPS GET /api/{tenant}/… (CORS)</text>
+  <line x1="680" y1="134" x2="720" y2="212" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="706" y="160" font-size="9.5" fill="#334155">HTTPS + SignalR</text>
+  <line x1="410" y1="374" x2="410" y2="412" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="416" y="398" font-size="9.5" fill="#334155">EF Core (ConnectionStrings:memsdb)</text>
+  <line x1="731" y1="374" x2="731" y2="412" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="737" y="398" font-size="9.5" fill="#334155">EF Core</text>
+  <line x1="224" y1="251" x2="258" y2="251" stroke="#7c3aed" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <line x1="260" y1="360" x2="224" y2="430" stroke="#7c3aed" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="168" y="306" font-size="9" fill="#5b21b6">WithReference(api)</text>
+</svg>
+<figcaption>Figure 1. One shared Blazor Server admin site, one Blazor WebAssembly public app serving every tenant by URL, the Web API and SQL Server, orchestrated by .NET Aspire. Burnaby, Surrey and Richmond are isolated at the URL, API, query and schema levels.</figcaption>
+</figure>
+
+<h3>Request flow for <code>/burnaby/candidates</code></h3>
+<ol>
+  <li>The browser loads <code>MEMS.Public</code>. The router matches <code>/{Tenant}/candidates</code>, so the tenant is <code>burnaby</code>.</li>
+  <li>The app calls <code>https+http://api/api/burnaby/candidates</code>. Aspire service discovery resolves <code>api</code> from configuration that the AppHost writes into the WASM app's <code>wwwroot/appsettings.json</code> (a browser app has no environment variables).</li>
+  <li><code>TenantResolutionMiddleware</code> looks up the slug and restricts <code>TenantContext</code> to Burnaby. An unknown slug ends the request with 404.</li>
+  <li><code>CandidateService</code> queries <code>db.Candidates</code>. The global query filter adds <code>WHERE MunicipalityId = 1</code>. Changing the id in the URL to a Surrey candidate gives 404.</li>
+</ol>
+
+<h2>3. Multi-tenancy and isolation</h2>
+<table>
+  <tr><th style="width:24%">Layer</th><th>How tenant isolation is enforced</th></tr>
+  <tr><td>Routing (public)</td><td>Every public page lives under <code>/{tenant}</code>. <code>TenantShell</code> resolves the tenant through the API, applies its branding (logo, colour, tagline) and shows "Municipality not found" for unknown slugs. Ballots are stored per tenant (<code>mems.ballot.{slug}</code>).</td></tr>
+  <tr><td>API</td><td><code>/api/{tenant}/…</code> routes. The middleware resolves the tenant before authorization. The <code>TenantAdmin</code> policy requires a Super Admin, or a Municipality Administrator whose <code>tenant_id</code> claim matches the URL (otherwise 403). The tenant is never read from a request body.</td></tr>
+  <tr><td>Blazor Server admin</td><td><code>CircuitTenantInitializer</code> sets the boundary from the signed-in user before every service call. Pages for another tenant's records show "not found". Super-Admin pages are protected by policy.</td></tr>
+  <tr><td>EF Core</td><td>Global query filters on <code>Municipality</code>, <code>Position</code>, <code>Candidate</code>, <code>Endorsement</code> and <code>StoredImage</code>: <code>IsUnrestricted || MunicipalityId == CurrentTenantId</code>. The context fails closed: no tenant set means no rows.</td></tr>
+  <tr><td>Database schema</td><td><code>MunicipalityId</code> foreign keys on positions, candidates, images and users. A composite FK makes a candidate's tenant equal to its position's tenant.</td></tr>
+  <tr><td>Identity</td><td><code>MunicipalityAdmin</code> users have exactly one <code>MunicipalityId</code>. The claims factory adds <code>tenant_id</code>/<code>tenant_slug</code> to the cookie and the JWT.</td></tr>
+</table>
+
+<h3>Isolation tests (run against the live system)</h3>
+<table>
+  <tr><th>Test</th><th>Result</th></tr>
+  <tr><td><code>GET /api/burnaby/candidates/15</code> (15 is a Surrey candidate)</td><td>404 Not found</td></tr>
+  <tr><td><code>POST /api/surrey/positions</code> with burnabyadmin's token</td><td>403 Forbidden</td></tr>
+  <tr><td><code>PUT /api/burnaby/candidates/15</code> with burnabyadmin's token</td><td>404 (the Surrey row is invisible)</td></tr>
+  <tr><td><code>POST /api/burnaby/candidates</code> with a Surrey <code>positionId</code></td><td>400 "Choose a position that belongs to this municipality."</td></tr>
+  <tr><td><code>DELETE /api/municipalities/2</code> with burnabyadmin's token</td><td>403 Forbidden</td></tr>
+  <tr><td>Admin site as burnabyadmin: <code>/admin/candidates/15</code>, <code>/admin/municipalities/2/edit</code></td><td>"Candidate not found", "Municipality not found"</td></tr>
+  <tr><td>Admin site as burnabyadmin: <code>/admin/users</code>, <code>/admin/municipalities/create</code></td><td>Access denied</td></tr>
+  <tr><td>Public site: <code>/surrey/candidates/1</code> (a Burnaby candidate), <code>/nowhere</code></td><td>"Candidate not found", "Municipality not found"</td></tr>
+  <tr><td>Super Admin creates Coquitlam → <code>GET /api/coquitlam</code> → deletes it</td><td>200, then 404. The tenant's administrator account is removed and their open session ends.</td></tr>
+</table>
+
+<h2 class="break">4. Entity relationship diagram</h2>
+<div class="mermaid">
+erDiagram
+    Municipalities ||--o{ Positions : has
+    Municipalities ||--o{ Candidates : "owns (tenant key)"
+    Municipalities ||--o{ Images : owns
+    Municipalities ||--o{ AspNetUsers : "administered by"
+    Municipalities |o--o| Images : logo
+    Positions ||--o{ Candidates : "contested by (PositionId, MunicipalityId)"
+    Candidates ||--o{ Endorsements : receives
+    Candidates |o--o| Images : photo
+    AspNetUsers ||--o{ AspNetUserRoles : has
+    AspNetRoles ||--o{ AspNetUserRoles : "granted to"
+    Municipalities {
+        int MunicipalityId PK
+        string Name UK
+        string Slug UK
+        string Province
+        date ElectionDate
+        string Description
+        string Tagline
+        string ThemeColor
+        guid LogoImageId FK
+    }
+    Positions {
+        int PositionId PK
+        int MunicipalityId FK
+        string Name "unique per tenant"
+        int SeatsAvailable
+    }
+    Candidates {
+        int CandidateId PK
+        int MunicipalityId FK
+        int PositionId FK
+        string Name
+        string Profile
+        string Email
+        string Website
+        string VideoUrl
+        string SocialX
+        string SocialFacebook
+        string SocialInstagram
+        string SocialLinkedIn
+        guid PhotoImageId FK
+        datetime DateCreated
+    }
+    Endorsements {
+        int EndorsementId PK
+        int CandidateId FK
+        string EndorserName
+        string Organization
+        string Text
+    }
+    Images {
+        guid StoredImageId PK
+        int MunicipalityId FK
+        string ContentType
+        binary Data
+        int Length
+    }
+    AspNetUsers {
+        string Id PK
+        string UserName UK
+        int MunicipalityId FK "null for Super Admin"
+    }
+    AspNetRoles {
+        string Id PK
+        string Name "SuperAdmin or MunicipalityAdmin"
+    }
+    AspNetUserRoles {
+        string UserId PK
+        string RoleId PK
+    }
+</div>
+<p class="note">Constraints: unique <code>Municipalities.Name</code> and <code>Slug</code>; unique <code>(MunicipalityId, Name)</code> on positions; CHECK constraints on slug format, theme colour, election date, seats and image size; composite FK <code>Candidates(PositionId, MunicipalityId) → Positions</code>. Source: <code>docs/erd.md</code>.</p>
+
+<h2 class="break">5. Administrative application (Blazor Server, <code>/admin</code>)</h2>
+<p>All Assignment 1 admin features were rewritten as Blazor components: the dashboard; municipality, position and candidate create, edit, delete and details; logo and photo upload; and administrator accounts. Tenant management (slug, branding) was added.</p>
+<div class="grid2">
+  <figure><img src="screenshots/a2/admin-login.png"><figcaption>Sign-in (no self-registration; lockout after 5 failures)</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-dashboard-super-admin.png"><figcaption>Super Admin dashboard: totals for all tenants</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-dashboard-municipality-admin.png"><figcaption>burnabyadmin sees only Burnaby</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-municipality-create.png"><figcaption>Create a tenant: slug suggested from the name, theme colour, logo preview</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-municipality-details.png"><figcaption>Tenant details: positions and administrators</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-candidates.png"><figcaption>Candidates with name search and municipality/position filters</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-validation.png"><figcaption>Blazor validation messages (client side, then server side)</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-users.png"><figcaption>Administrator accounts (Super Admin only)</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-delete-confirm.png"><figcaption>Delete confirmation explains the cascade</figcaption></figure>
+  <figure><img src="screenshots/a2/admin-mobile.png"><figcaption>Responsive layout on a phone</figcaption></figure>
+</div>
+
+<h2 class="break">6. Public website (Blazor WebAssembly)</h2>
+<div class="grid2">
+  <figure><img src="screenshots/a2/public-home.png"><figcaption>Browse municipalities</figcaption></figure>
+  <figure><img src="screenshots/a2/public-tenant-burnaby.png"><figcaption>/burnaby: tenant overview and positions</figcaption></figure>
+  <figure><img src="screenshots/a2/public-tenant-surrey.png"><figcaption>/surrey: its own logo, colour and tagline</figcaption></figure>
+  <figure><img src="screenshots/a2/public-candidates.png"><figcaption>Candidate directory: name search, municipality and position filters, paging, add to guide</figcaption></figure>
+  <figure><img src="screenshots/a2/public-candidate-details.png"><figcaption>Candidate details, photo, links, endorsements</figcaption></figure>
+  <figure><img src="screenshots/a2/public-compare.png"><figcaption>Compare candidates (kept from Assignment 1)</figcaption></figure>
+  <figure><img src="screenshots/a2/public-guide.png"><figcaption>Personal voting guide: seat limits per position</figcaption></figure>
+  <figure><img src="screenshots/a2/public-guide-print.png"><figcaption>Printable guide: municipality, election date, candidates, positions, print date</figcaption></figure>
+  <figure><img src="screenshots/a2/public-mobile.png"><figcaption>Responsive layout on a phone</figcaption></figure>
+</div>
+
+<h2>7. Election privacy and vote confidentiality</h2>
+<table>
+  <tr><th style="width:38%">Requirement</th><th>Implementation and evidence</th></tr>
+  <tr><td>Store ballot selections only in the browser session (Session Storage)</td><td><code>VotingGuide</code> reads and writes <code>sessionStorage</code> through JS interop (key <code>mems.ballot.{slug}</code>, value <code>[{CandidateId, PositionId}]</code>). Nothing is written to <code>localStorage</code>; only the dark-mode preference uses it.</td></tr>
+  <tr><td>Never write selections to SQL Server</td><td>No entity or table exists for them (see the table list in section 9).</td></tr>
+  <tr><td>Never send selections to the API</td><td>The guide page downloads the tenant's full candidate list and matches the stored ids in the browser. An automated test recorded every API request during a full guide session: 67 requests, all <code>GET</code>, none carrying selections.</td></tr>
+  <tr><td>Remove ballot data when the session ends</td><td>Browser session storage is discarded with the tab/session. Tested: a new browser session shows "0 candidates chosen".</td></tr>
+  <tr><td>Administrators cannot view individual selections</td><td>The server never receives them, so no admin page, log, trace or database can show them.</td></tr>
+</table>
+<p>The Assignment 1 PDF export (QuestPDF on the server) was replaced by a print-optimised page ("Print or save as PDF"). Generating the PDF on the server would have meant sending the ballot to the server.
+The specification also mentions local storage for selections. Session storage was chosen because the privacy section requires the data to disappear when the session ends.</p>
+
+<h2 class="break">8. ASP.NET Web API</h2>
+<p>Full reference with request/response and error examples: <code>docs/api.md</code>. Interactive documentation: <code>/swagger</code>. Request collection: <code>src/MEMS.Api/MEMS.Api.http</code>.</p>
+<table>
+  <tr><th>Resource</th><th>GET</th><th>GET by id</th><th>POST</th><th>PUT</th><th>DELETE</th></tr>
+  <tr><td>Municipalities</td><td><code>/api/municipalities</code></td><td><code>/api/municipalities/{id}</code></td><td>Super Admin</td><td>own tenant</td><td>Super Admin</td></tr>
+  <tr><td>Positions</td><td><code>/api/{tenant}/positions</code></td><td><code>…/positions/{id}</code></td><td>tenant admin</td><td>tenant admin</td><td>tenant admin</td></tr>
+  <tr><td>Candidates</td><td><code>/api/{tenant}/candidates</code></td><td><code>…/candidates/{id}</code></td><td>tenant admin</td><td>tenant admin</td><td>tenant admin</td></tr>
+</table>
+<p>Also: <code>POST /api/auth/login</code> (JWT), <code>GET /api/{tenant}</code>, logo and photo upload/remove, <code>GET /api/{tenant}/images/{id}</code>.</p>
+<figure><img src="screenshots/a2/api-swagger.png"><figcaption>Swagger UI generated from the OpenAPI document (22 operations, bearer authentication)</figcaption></figure>
+<figure><img src="screenshots/a2/api-try-it.png"><figcaption>Testing <code>GET /api/{tenant}/candidates</code> with tenant = burnaby in Swagger</figcaption></figure>
+<figure class="tall"><img src="screenshots/a2/api-testing.png"><figcaption>API testing: success, cross-tenant 403, cross-tenant 404, validation 400 and unauthenticated 401 responses (ProblemDetails with trace ids)</figcaption></figure>
+
+<h2 class="break">9. SQL Server and EF Core</h2>
+<ul>
+  <li>SQL Server 2022 runs as an Aspire container resource with a persistent data volume (<code>mems-sql-data</code>). No project contains a connection string: Aspire injects <code>ConnectionStrings__memsdb</code>.</li>
+  <li>EF Core Code First with the <code>InitialCreate</code> migration. The API applies migrations and seeds on start-up, and the Admin app waits for the API to be healthy (<code>WaitFor</code>).</li>
+  <li>Service layer: <code>IMunicipalityService</code>, <code>IPositionService</code>, <code>ICandidateService</code>, <code>IAdminUserService</code>, <code>IImageService</code>, <code>ITenantDirectory</code>. All use <code>IDbContextFactory</code> (safe for Blazor Server concurrency) and return <code>Result&lt;T&gt;</code>.</li>
+  <li>Multi-statement deletes run in a transaction through the execution strategy, because the Aspire integration enables connection retries.</li>
+</ul>
+<figure class="tall"><img src="screenshots/a2/sql-server-database.png"><figcaption>Queries against the memsdb database in the Aspire SQL Server container: tables, tenants, rows per tenant, administrator accounts, check constraints, migrations</figcaption></figure>
+
+<h2 class="break">10. .NET Aspire</h2>
+<table>
+  <tr><th style="width:24%">Feature</th><th>Implementation</th></tr>
+  <tr><td>Orchestration</td><td><code>AppHost.cs</code> declares <code>sql</code> → <code>memsdb</code>, <code>api</code>, <code>public</code> and <code>admin</code>, with <code>WaitFor</code> ordering and HTTP health checks.</td></tr>
+  <tr><td>Service discovery</td><td>Admin: <code>WithReference(api)</code> and <code>WithReference(public)</code> give links to Swagger and to each tenant's public site. Public (WASM): <code>WithBrowserServiceReference(api)</code> writes the same <code>Services:api</code> keys to <code>wwwroot/appsettings.json</code>, and the <code>HttpClient</code> uses <code>https+http://api</code>. The API's CORS policy receives the public site's endpoints from the AppHost.</td></tr>
+  <tr><td>Configuration</td><td>Connection string from <code>WithReference(database)</code>. Secret parameters <code>seed-admin-password</code> and <code>jwt-signing-key</code> (generated and persisted to user secrets).</td></tr>
+  <tr><td>Observability</td><td><code>ServiceDefaults</code>: OpenTelemetry logs (with scopes, so API logs carry <code>TenantId</code>/<code>TenantSlug</code>), traces (ASP.NET Core, HttpClient, SQL Client via the Aspire EF integration) and metrics, plus <code>/health</code> (includes a SQL Server check) and <code>/alive</code>.</td></tr>
+</table>
+<figure><img src="screenshots/a2/aspire-resources.png"><figcaption>Aspire dashboard: SQL Server, memsdb, api, admin and public running</figcaption></figure>
+<figure><img src="screenshots/a2/aspire-logs.png"><figcaption>Structured logs from every service</figcaption></figure>
+<figure><img src="screenshots/a2/aspire-traces.png"><figcaption>Distributed traces: <code>api: GET api/{tenant}/candidates</code> with its memsdb (SQL) child spans</figcaption></figure>
+
+<h2>11. Validation</h2>
+<table>
+  <tr><th style="width:20%">Rule</th><th>Client (Blazor)</th><th>API / service layer</th><th>Database</th></tr>
+  <tr><td>Required fields</td><td><code>[Required]</code> + <code>DataAnnotationsValidator</code></td><td><code>[ApiController]</code> model validation + <code>InputValidator</code> in services</td><td>NOT NULL columns</td></tr>
+  <tr><td>String lengths</td><td><code>[StringLength]</code></td><td>same contracts re-validated</td><td><code>nvarchar(n)</code> via <code>HasMaxLength</code></td></tr>
+  <tr><td>Email</td><td><code>[EmailAddress]</code></td><td>same</td><td><code>nvarchar(254)</code></td></tr>
+  <tr><td>URLs</td><td><code>[HttpUrl]</code> (http/https only)</td><td>same</td><td><code>nvarchar(300)</code></td></tr>
+  <tr><td>Tenant slug</td><td><code>[TenantSlug]</code> (format, reserved words)</td><td>same + uniqueness (409)</td><td>unique index + CHECK</td></tr>
+  <tr><td>Seats, dates, colour</td><td><code>[Range]</code>, <code>[ElectionDate]</code>, regex</td><td>same</td><td>CHECK constraints</td></tr>
+  <tr><td>Images</td><td><code>InputFile</code>: size, extension, file signature, preview</td><td>size before buffering, signature check (<code>ImageInspector</code>)</td><td>CHECK 1 byte – 5 MB</td></tr>
+  <tr><td>Cross-tenant references</td><td>only the user's positions offered</td><td>position looked up through the tenant filter</td><td>composite foreign key</td></tr>
+</table>
+
+<h2>12. Logging, error handling and security</h2>
+<ul>
+  <li><strong>Structured logging</strong> with message templates (e.g. <code>"Candidate {CandidateId} created in municipality {MunicipalityId}"</code>), cross-tenant attempts logged as warnings, and sign-in success, failure and lockout events.</li>
+  <li><strong>Global exception handling:</strong> API <code>IExceptionHandler</code> → ProblemDetails with a trace id; Admin <code>UseExceptionHandler("/error")</code> plus an <code>ErrorBoundary</code> that logs and offers "Try again"; Public <code>ErrorBoundary</code>, and API failures become "Election information could not be loaded right now".</li>
+  <li><strong>Nothing sensitive is shown</strong>: no stack traces or SQL in any environment; Blazor <code>DetailedErrors</code> off; identical messages for unknown user and wrong password.</li>
+  <li>Cookies are HttpOnly, Secure and SameSite=Strict. Antiforgery protects sign-out. Security stamps are validated per request. The login endpoint is rate-limited. HTTPS is used throughout and CORS allows only the public site.</li>
+</ul>
+
+<h2 class="break">13. Assignment 1 deficiency corrections</h2>
+<div class="todo"><strong>Before submitting:</strong> add the issues from the instructor's Assignment 1 marking feedback to the table in <code>docs/deficiency-report.md</code> (Part A) and here. The rows below were found by reviewing the Assignment 1 code.</div>
+<table>
+  <tr><th style="width:15%">Issue</th><th style="width:40%">Original problem</th><th>Resolution</th></tr>
+  <tr><td>Data integrity</td><td>Nothing stopped a candidate being linked to another municipality's position; a position edit could move a position (and its candidates) to another municipality.</td><td><code>Candidates.MunicipalityId</code> + composite FK; a position's municipality is immutable; a candidate moves only within its own municipality.</td></tr>
+  <tr><td>Data integrity</td><td>No unique position names per municipality, no election-date range, no CHECK constraints.</td><td>Unique indexes and CHECK constraints (section 4).</td></tr>
+  <tr><td>Authorization</td><td>One Identity role per municipality, named after it and renamed with it; users could hold several; every controller action had to call the access service.</td><td>Two fixed roles + <code>MunicipalityId</code> (exactly one tenant); central EF query filters that fail closed; API middleware and policy; service-layer checks.</td></tr>
+  <tr><td>Security</td><td>Seed password hard-coded in source; 6-character password policy.</td><td>Aspire secret parameter; 8+ characters with complexity; generated JWT key.</td></tr>
+  <tr><td>Security</td><td>Deleted or reset accounts kept working until the cookie was revalidated (30 minutes).</td><td>Stamp validated on every request; circuits revalidated every minute.</td></tr>
+  <tr><td>Validation</td><td><code>[Url]</code> accepted <code>ftp://</code>; rules lived only on MVC models.</td><td><code>[HttpUrl]</code>; shared contracts validated in the client, the service layer and the database.</td></tr>
+  <tr><td>Privacy</td><td>Voting guide kept in server-side session state for 7 days.</td><td>Browser <code>sessionStorage</code> only (section 7).</td></tr>
+  <tr><td>Broken cleanup</td><td>Deleting a position left its candidates' photo files on disk.</td><td>Images are tenant-owned database rows deleted in the same transaction.</td></tr>
+  <tr><td>Error handling</td><td>No central exception logging; developer exception page in Development.</td><td>Global handlers, ProblemDetails, logging error boundaries, structured logs in Aspire.</td></tr>
+  <tr><td>Code quality</td><td>Data access and authorization spread across MVC controllers.</td><td>Shared service layer returning <code>Result&lt;T&gt;</code>, used by the API and the Admin app.</td></tr>
+  <tr><td>Database</td><td>SQLite.</td><td>SQL Server via Aspire.</td></tr>
+</table>
+
+<h2>14. GitHub Copilot</h2>
+<p>The repository contains <code>.github/copilot-instructions.md</code> (updated for the Assignment 2 architecture and tenancy rules), three skill files (<code>multi-tenancy</code>, <code>identity-authorization</code>, <code>ef-core-migrations</code>), two prompt files (<code>scaffold-crud</code>, <code>seed-data</code>) and a review agent (<code>crud-reviewer</code>). The usage report is in <code>docs/copilot-usage.md</code>.</p>
+<div class="todo"><strong>Before submitting:</strong> complete sections 2–4 of <code>docs/copilot-usage.md</code> (how Copilot was used, example prompts, productivity improvements, problems encountered).</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral', er: { useMaxWidth: true } });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Municipal Elections Management System - Documentation</title>
+<style>
+  @page { size: Letter; margin: 18mm 16mm; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1b2430; line-height: 1.5; font-size: 11pt; max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { color: #163b68; font-size: 26pt; margin: 0 0 4px; }
+  h2 { color: #163b68; border-bottom: 2px solid #f2a541; padding-bottom: 4px; margin-top: 32px; page-break-after: avoid; }
+  h3 { color: #1d4e89; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; font-size: 10.5pt; }
+  th, td { border: 1px solid #cfd6df; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #eef2f8; }
+  code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; font-size: 10pt; }
+  pre { background: #eef2f8; padding: 10px 12px; border-radius: 6px; font-size: 9.5pt; white-space: pre-wrap; }
+  figure { margin: 14px 0 22px; page-break-inside: avoid; }
+  figure img { display: block; max-width: 100%; max-height: 105mm; margin: 0 auto; border: 1px solid #cfd6df; border-radius: 6px; }
+  figcaption { text-align: center; }
+  figcaption { font-size: 9.5pt; color: #4a5562; margin-top: 4px; }
+  .cover { border-left: 6px solid #f2a541; padding: 6px 0 6px 18px; margin-bottom: 20px; }
+  .cover p { margin: 2px 0; }
+  .todo { border: 2px dashed #c0392b; background: #fdf1ef; padding: 10px 14px; border-radius: 6px; }
+  .break { page-break-before: always; }
+  a { color: #1d4e89; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Municipal Elections Management System</h1>
+  <p><strong>Project documentation</strong></p>
+  <p>Author: Polina Omelyantseva</p>
+  <p>Repository: <a href="https://github.com/hytyz/mems-4977/tree/master">https://github.com/hytyz/mems-4977/tree/master</a></p>
+  <p>Deployed application: <a href="https://mems-assignment-app.azurewebsites.net">https://mems-assignment-app.azurewebsites.net</a></p>
+</div>
+
+<h2>1. Overview</h2>
+<p>An ASP.NET Core MVC (.NET 10) application backed by EF Core Code First and SQLite, with ASP.NET Core Identity
+for administrators. Visitors browse municipalities and candidates, compare candidates and build a session-based
+personal voting guide that can be printed or exported to PDF. Administrators manage municipalities, positions,
+candidates and administrator accounts in the <code>Admin</code> area.</p>
+
+<table>
+  <tr><th style="width:26%">Area</th><th>Implementation</th></tr>
+  <tr><td>Database</td><td>EF Core Code First models and migrations (<code>Data/Migrations</code>). The connection string is read from
+      <code>ConnectionStrings:DefaultConnection</code> in configuration; the application refuses to start without it. Every seeded
+      municipality has positions and candidates.</td></tr>
+  <tr><td>Authentication</td><td>ASP.NET Core Identity with username/password login. There is no self-registration: only the Login,
+      Logout and Access Denied pages exist, and accounts are created by a SuperAdmin.</td></tr>
+  <tr><td>Authorization</td><td><code>SuperAdmin</code> plus one distinct admin group (Identity role) per municipality, e.g.
+      <code>Pitt Meadows Admin</code>. Members of a municipality group see and manage only that municipality.</td></tr>
+  <tr><td>Voting guide</td><td>Visitors only. One municipality per guide and, for each position, no more candidates than there are seats.</td></tr>
+  <tr><td>Uploads</td><td>Images are validated by extension, size and actual file content (file signature), renamed by the server and stored
+      outside <code>wwwroot</code>, so a redeployment does not delete them.</td></tr>
+  <tr><td>Bonus features</td><td>Endorsements, social/video links, dark mode, pagination, candidate comparison, PDF export.</td></tr>
+</table>
+
+<h3>Seeded accounts</h3>
+<table>
+  <tr><th>Username</th><th>Initial password</th><th>Group</th><th>Access</th></tr>
+  <tr><td><code>super</code></td><td><code>P@$$w0rd</code></td><td>SuperAdmin</td><td>Everything, including municipalities and administrator accounts</td></tr>
+  <tr><td><code>pm</code></td><td><code>P@$$w0rd</code></td><td>Pitt Meadows Admin</td><td>Pitt Meadows only</td></tr>
+</table>
+<p>These accounts are created the first time the application starts. Startup never changes the password of an account that already exists.</p>
+
+<h2 class="break">2. Entity relationship diagram</h2>
+<figure><img src="screenshots/erd.png" alt="Entity relationship diagram"><figcaption>EF Core Code First model with the ASP.NET Core Identity tables it relies on.</figcaption></figure>
+<ul>
+  <li>A <strong>Municipality</strong> has many <strong>Positions</strong>, a Position has many <strong>Candidates</strong>, and a Candidate has many
+      <strong>Endorsements</strong>. All three relationships cascade on delete.</li>
+  <li><code>Municipality.Name</code> and <code>Municipality.AdminRoleName</code> are unique.</li>
+  <li>Each municipality owns one Identity role, named in <code>AdminRoleName</code>. Membership in that role
+      (<code>AspNetUserRoles</code>) is what makes a user an administrator of that municipality. The role is created, renamed and deleted
+      together with its municipality.</li>
+  <li><code>ApplicationUser</code> extends <code>IdentityUser</code>.</li>
+</ul>
+
+<h2 class="break">3. Public website</h2>
+<figure><img src="screenshots/homepage.png" alt="Home page: every municipality with its election date, positions and candidate counts."><figcaption>Home page: every municipality with its election date, positions and candidate counts.</figcaption></figure>
+<figure><img src="screenshots/municipality.png" alt="Municipality page: positions, seats available and the candidates running for each."><figcaption>Municipality page: positions, seats available and the candidates running for each.</figcaption></figure>
+<figure><img src="screenshots/candidates.png" alt="Candidate directory with search, municipality/position filters and pagination."><figcaption>Candidate directory with search, municipality/position filters and pagination.</figcaption></figure>
+<figure><img src="screenshots/candidate-details.png" alt="Candidate profile with biography, contact links and endorsements."><figcaption>Candidate profile with biography, contact links and endorsements.</figcaption></figure>
+<figure><img src="screenshots/compare.png" alt="Side-by-side candidate comparison."><figcaption>Side-by-side candidate comparison.</figcaption></figure>
+<figure><img src="screenshots/darkmode.png" alt="Dark mode."><figcaption>Dark mode.</figcaption></figure>
+
+<h2 class="break">4. Personal voting guide</h2>
+<p>The guide is stored in the visitor's session. It follows the rules of a real ballot: a guide covers a single municipality, and
+for each position a visitor can choose at most as many candidates as there are seats (one mayor, six councillors, and so on).
+The rules are enforced on the server in <code>VotingGuideService</code>.</p>
+<figure><img src="screenshots/votingguide.png" alt="Voting guide grouped by position, showing how many seats have been filled."><figcaption>Voting guide grouped by position, showing how many seats have been filled.</figcaption></figure>
+<figure><img src="screenshots/votingguide-one-mayor.png" alt="A second mayor cannot be added: the position has one seat."><figcaption>A second mayor cannot be added: the position has one seat.</figcaption></figure>
+<figure><img src="screenshots/votingguide-one-municipality.png" alt="A candidate from another municipality cannot be added to the same guide."><figcaption>A candidate from another municipality cannot be added to the same guide.</figcaption></figure>
+<figure><img src="screenshots/votingguide-print.png" alt="Printer view. The same guide can be downloaded as a PDF."><figcaption>Printer view. The same guide can be downloaded as a PDF.</figcaption></figure>
+
+<h2 class="break">5. Authentication and access control</h2>
+<figure><img src="screenshots/login.png" alt="Administrator sign-in. There is no registration link and no external login section."><figcaption>Administrator sign-in. There is no registration link and no external login section.</figcaption></figure>
+<figure><img src="screenshots/dashboard-super-admin.png" alt="SuperAdmin dashboard: all municipalities, each with its own admin group."><figcaption>SuperAdmin dashboard: all municipalities, each with its own admin group.</figcaption></figure>
+<figure><img src="screenshots/create-municipality.png" alt="Creating a municipality, optionally together with its first administrator."><figcaption>Creating a municipality, optionally together with its first administrator.</figcaption></figure>
+<figure><img src="screenshots/users.png" alt="Administrator accounts and the group each belongs to (SuperAdmin only)."><figcaption>Administrator accounts and the group each belongs to (SuperAdmin only).</figcaption></figure>
+<figure><img src="screenshots/municipality-admins.png" alt="Municipality details listing the members of its admin group."><figcaption>Municipality details listing the members of its admin group.</figcaption></figure>
+<figure><img src="screenshots/dashboard-municipality-admin.png" alt="Signed in as pm (Pitt Meadows Admin): only Pitt Meadows is shown."><figcaption>Signed in as pm (Pitt Meadows Admin): only Pitt Meadows is shown.</figcaption></figure>
+<figure><img src="screenshots/accesscontrol.png" alt="The Pitt Meadows administrator sees only Pitt Meadows candidates."><figcaption>The Pitt Meadows administrator sees only Pitt Meadows candidates.</figcaption></figure>
+<figure><img src="screenshots/positions.png" alt="The Pitt Meadows administrator sees only Pitt Meadows positions."><figcaption>The Pitt Meadows administrator sees only Pitt Meadows positions.</figcaption></figure>
+<figure><img src="screenshots/admin-no-shortlist.png" alt="Administrators have no voting guide link and no button to shortlist a candidate."><figcaption>Administrators have no voting guide link and no button to shortlist a candidate.</figcaption></figure>
+<figure><img src="screenshots/accessdenied.png" alt="A municipality administrator is refused access to SuperAdmin-only pages."><figcaption>A municipality administrator is refused access to SuperAdmin-only pages.</figcaption></figure>
+
+<h2 class="break">6. Candidate management</h2>
+<figure><img src="screenshots/create.png" alt="Creating a candidate. The position list contains only positions in the municipalities the administrator manages."><figcaption>Creating a candidate. The position list contains only positions in the municipalities the administrator manages.</figcaption></figure>
+<figure><img src="screenshots/edit.png" alt="Editing a candidate, including replacing or removing the photograph."><figcaption>Editing a candidate, including replacing or removing the photograph.</figcaption></figure>
+
+<h2 class="break">7. Configuration</h2>
+<table>
+  <tr><th style="width:38%">Setting</th><th>Purpose</th></tr>
+  <tr><td><code>ConnectionStrings:DefaultConnection</code></td><td>SQLite connection string. Required. Defined in <code>appsettings.json</code>;
+      override per environment with <code>appsettings.Development.json</code> or the
+      <code>ConnectionStrings__DefaultConnection</code> environment variable / Azure App Setting.</td></tr>
+  <tr><td><code>Storage:UploadsPath</code></td><td>Folder for uploaded images. When empty, the application uses
+      <code>%HOME%/data/uploads</code> on Azure App Service (persists across deployments) and <code>App_Data/uploads</code> locally.</td></tr>
+</table>
+
+<h3>Running locally</h3>
+<pre>cd src/MunicipalElections
+dotnet run</pre>
+<p>The database is created, migrated and seeded on first start.</p>
+
+<h2>8. Azure deployment</h2>
+<p>The application is deployed to Azure App Service at
+<a href="https://mems-assignment-app.azurewebsites.net">https://mems-assignment-app.azurewebsites.net</a>.</p>
+<pre>dotnet publish src/MunicipalElections -c Release -o publish
+cd publish &amp;&amp; zip -r ../app.zip . &amp;&amp; cd ..
+az webapp deploy --resource-group &lt;resource-group&gt; --name mems-assignment-app --src-path app.zip --type zip</pre>
+<p>Recommended App Settings so data survives redeployments:</p>
+<pre>ConnectionStrings__DefaultConnection = Data Source=/home/data/municipal-elections.db   (Linux)
+ConnectionStrings__DefaultConnection = Data Source=C:\home\data\municipal-elections.db  (Windows)</pre>
+
+<div class="todo">
+  <strong>Deployment evidence &ndash; to be added.</strong> Redeploy this version, confirm the URL above loads, then replace this box with a
+  screenshot of the live site (showing the azurewebsites.net address) and of the App Service overview page in the Azure portal.
+</div>
+
+</body>
+</html>
