@@ -68,7 +68,8 @@ a Super Admin creates a new municipality in the admin site and its public site w
   <tr><td><code>pm</code></td><td>Municipality Administrator (Assignment 1 user)</td><td>Pitt Meadows</td></tr>
 </table>
 <p>Seed data: 5 municipalities (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), 15 positions (Mayor, Councillor and School Trustee for each), 39 candidates and 5 endorsements.
-Usernames are case-insensitive, so <code>Super</code> and <code>Burnabyadmin</code> also work.</p>
+Usernames are case-insensitive, so <code>Super</code> and <code>Burnabyadmin</code> also work.
+The initial password is the one the instructor specified in Assignment 1. It is set once, when an account is first created, and is never reset afterwards (section 13).</p>
 
 <h2 class="break">2. System architecture</h2>
 <figure>
@@ -207,6 +208,7 @@ Usernames are case-insensitive, so <code>Super</code> and <code>Burnabyadmin</co
   <tr><td>Public site: <code>/surrey/candidates/1</code> (a Burnaby candidate), <code>/nowhere</code></td><td>"Candidate not found", "Municipality not found"</td></tr>
   <tr><td>Super Admin creates Coquitlam → <code>GET /api/coquitlam</code> → deletes it</td><td>200, then 404. The tenant's administrator account is removed and their open session ends.</td></tr>
 </table>
+<p><strong>Reads are public by design.</strong> Every <code>GET</code> endpoint is anonymous, because the public site has no sign-in and reads the same endpoints. An administrator's token therefore adds no read access: <code>GET /api/surrey/candidates</code> sent with burnabyadmin's token returns Surrey's published candidates, exactly as it does for any visitor, and nothing more. Everything an administrator role adds (creating, editing and deleting records, uploading images) is limited to the administrator's own tenant, as the tests above show. Administrator accounts are not exposed by the API at all.</p>
 
 <h2 class="break">4. Entity relationship diagram</h2>
 <div class="mermaid">
@@ -351,7 +353,7 @@ The specification also mentions local storage for selections. Session storage wa
   <tr><th style="width:24%">Feature</th><th>Implementation</th></tr>
   <tr><td>Orchestration</td><td><code>AppHost.cs</code> declares <code>sql</code> → <code>memsdb</code>, <code>api</code>, <code>public</code> and <code>admin</code>, with <code>WaitFor</code> ordering and HTTP health checks.</td></tr>
   <tr><td>Service discovery</td><td>Admin: <code>WithReference(api)</code> and <code>WithReference(public)</code> give links to Swagger and to each tenant's public site. Public (WASM): <code>WithBrowserServiceReference(api)</code> writes the same <code>Services:api</code> keys to <code>wwwroot/appsettings.json</code>, and the <code>HttpClient</code> uses <code>https+http://api</code>. The API's CORS policy receives the public site's endpoints from the AppHost.</td></tr>
-  <tr><td>Configuration</td><td>Connection string from <code>WithReference(database)</code>. Secret parameters <code>seed-admin-password</code> and <code>jwt-signing-key</code> (generated and persisted to user secrets).</td></tr>
+  <tr><td>Configuration</td><td>Connection string from <code>WithReference(database)</code>. Secret parameters <code>seed-admin-password</code> (default <code>P@$$w0rd</code>, the instructor-specified password, in the AppHost's <code>appsettings.json</code>) and <code>jwt-signing-key</code> (generated and persisted to user secrets).</td></tr>
   <tr><td>Observability</td><td><code>ServiceDefaults</code>: OpenTelemetry logs (with scopes, so API logs carry <code>TenantId</code>/<code>TenantSlug</code>), traces (ASP.NET Core, HttpClient, SQL Client via the Aspire EF integration) and metrics, plus <code>/health</code> (includes a SQL Server check) and <code>/alive</code>.</td></tr>
 </table>
 <figure><img src="screenshots/a2/aspire-resources.png"><figcaption>Aspire dashboard: SQL Server, memsdb, api, admin and public running</figcaption></figure>
@@ -388,7 +390,7 @@ The specification also mentions local storage for selections. Session storage wa
   <tr><td>Database design</td><td>Seed data created positions and candidates only for Pitt Meadows.</td><td>Five municipalities seeded (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), each with Mayor, Councillor and School Trustee positions, 39 candidates in total, and an administrator for each.</td></tr>
   <tr><td>Database design</td><td>Configuration fell back to a default connection string.</td><td>No connection string in any project and no fallback. The app fails with a clear error unless Aspire supplies <code>ConnectionStrings:memsdb</code>.</td></tr>
   <tr><td>Authorization</td><td>Municipality administrators shared one role instead of distinct municipality-specific groups.</td><td>Each municipality has its own administrator group (<code>AspNetUsers.MunicipalityId</code> → <code>Municipality.Administrators</code>), so each administrator belongs to exactly one. Issued as <code>tenant_id</code> claims and enforced by query filters, the API <code>TenantAdmin</code> policy and the service layer. Each group is listed on its municipality's page.</td></tr>
-  <tr><td>Authorization</td><td>Startup reset seeded users' passwords to the default.</td><td>The seeder only creates missing accounts and never changes existing ones. The initial password is an Aspire secret parameter.</td></tr>
+  <tr><td>Authorization</td><td>Startup reset seeded users' passwords to the default.</td><td>The seeder only creates missing accounts and never changes existing ones. The initial password <code>P@$$w0rd</code> is the one the instructor specified in Assignment 1. It is no longer in the seeding code: it is the default of the Aspire parameter <code>seed-admin-password</code> in the AppHost's <code>appsettings.json</code>, and can be overridden in user secrets.</td></tr>
   <tr><td>Authorization (-3)</td><td>No way to create an administrator for a new municipality.</td><td>After creating a municipality, its page prompts for an administrator. <strong>+ Add administrator</strong> opens the account form with the municipality preselected.</td></tr>
   <tr><td>Candidates</td><td>Uploads validated by extension and size only.</td><td><code>ImageInspector</code> checks the file signature (JPEG, PNG, GIF, WEBP) in the picker and again in the service layer for every caller. The content type comes from the signature. A CHECK constraint caps images at 5 MB.</td></tr>
   <tr><td>Candidates</td><td>Uploads stored under <code>wwwroot</code>, lost on redeployment.</td><td>Images are tenant-owned rows in SQL Server, served by the API and the Admin app, and deleted in the same transaction as their owner.</td></tr>
@@ -409,7 +411,7 @@ The specification also mentions local storage for selections. Session storage wa
   <tr><td>Data integrity</td><td>Nothing stopped a candidate being linked to another municipality's position; a position edit could move a position (and its candidates) to another municipality.</td><td><code>Candidates.MunicipalityId</code> + composite FK; a position's municipality is immutable; a candidate moves only within its own municipality.</td></tr>
   <tr><td>Data integrity</td><td>No unique position names per municipality, no election-date range, no CHECK constraints.</td><td>Unique indexes and CHECK constraints (section 4).</td></tr>
   <tr><td>Authorization</td><td>One Identity role per municipality, named after it and renamed with it; users could hold several; every controller action had to call the access service.</td><td>Two fixed roles + <code>MunicipalityId</code> (exactly one tenant); central EF query filters that fail closed; API middleware and policy; service-layer checks.</td></tr>
-  <tr><td>Security</td><td>Seed password hard-coded in source; 6-character password policy.</td><td>Aspire secret parameter; 8+ characters with complexity; generated JWT key.</td></tr>
+  <tr><td>Security</td><td>Seed password hard-coded in source; 6-character password policy.</td><td>No credential in the seeding code; the password comes from the Aspire parameter <code>seed-admin-password</code> (default: the instructor-specified password, see above). 8+ characters with complexity. JWT key generated by Aspire and kept in user secrets.</td></tr>
   <tr><td>Security</td><td>Deleted or reset accounts kept working until the cookie was revalidated (30 minutes).</td><td>Stamp validated on every request; circuits revalidated every minute.</td></tr>
   <tr><td>Validation</td><td><code>[Url]</code> accepted <code>ftp://</code>; rules lived only on MVC models.</td><td><code>[HttpUrl]</code>; shared contracts validated in the client, the service layer and the database.</td></tr>
   <tr><td>Privacy</td><td>Voting guide kept in server-side session state for 7 days.</td><td>Browser <code>sessionStorage</code> only (section 7).</td></tr>

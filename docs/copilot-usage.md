@@ -64,7 +64,8 @@ Overall the time saved was small, and most of it was spent again reviewing and c
   correctly returned no rows, and took the municipality id from request bodies. Adding the
   multi-tenancy rules to `copilot-instructions.md` reduced this but did not stop it.
 - **Outdated APIs.** Suggestions mixed Aspire 8, 9 and 13 APIs, and .NET 8 Blazor templates with
-  .NET 10 ones. Several suggested methods did not exist in the installed packages.
+  .NET 10 ones. Several suggested methods did not exist in the installed packages. Even worse than
+  my research project from earlier.
 - **Blazor render modes.** Copilot suggested making the login page interactive, which breaks cookie
   sign-in because Blazor Server cannot set cookies over a SignalR circuit. The page was moved to
   static rendering (`[ExcludeFromInteractiveRouting]`).

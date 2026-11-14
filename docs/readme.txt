@@ -43,8 +43,9 @@ On the first run the API applies the EF Core migration and seeds the data. The S
 the Docker volume "mems-sql-data". Aspire generates the SQL Server password and the JWT signing key and
 stores them in the AppHost's user secrets.
 
-Accounts (initial password P@$$w0rd, the AppHost parameter "seed-admin-password")
-----------------------------------------------------------------------------------
+Accounts (initial password P@$$w0rd, specified by the instructor in Assignment 1; it is the default of
+the AppHost parameter "seed-admin-password" and is only used when an account is first created)
+------------------------------------------------------------------------------------------------------
   super          Super Admin                 all municipalities
   burnabyadmin   Municipality Administrator  Burnaby
   surreyadmin    Municipality Administrator  Surrey

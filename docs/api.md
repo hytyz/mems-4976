@@ -11,7 +11,11 @@ Ready-made requests: `src/MEMS.Api/MEMS.Api.http`.
 - **Isolation.** Every query under `/api/{tenant}` is restricted to that tenant in the database layer.
   An id that belongs to another tenant returns **404** (`/api/burnaby/candidates/15`, where 15 is a
   Surrey candidate). A write to another tenant returns **403**.
-- **Authentication.** Reads are public. Writes need `Authorization: Bearer <accessToken>` from
+- **Public reads.** Every `GET` is anonymous because the public site has no sign-in. An administrator's
+  token adds no read access: `GET /api/surrey/candidates` with burnabyadmin's token returns Surrey's
+  published candidates, the same response any visitor gets. Administrator accounts are not exposed by
+  the API.
+- **Authentication.** Writes need `Authorization: Bearer <accessToken>` from
   `POST /api/auth/login`. Tokens last 30 minutes.
 - **Authorization.**
   - *Super Admin*: every endpoint.
