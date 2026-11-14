@@ -12,17 +12,11 @@ namespace MEMS.Admin.Infrastructure;
 
 public static class AdminPolicies
 {
-    /// <summary>A Super Admin or a Municipality Administrator.</summary>
     public const string AnyAdmin = "AnyAdmin";
 
     public const string SuperAdmin = "SuperAdmin";
 }
 
-/// <summary>
-/// Sets the tenant boundary for the Blazor circuit from the signed-in administrator, every time
-/// a service is about to touch the database. The EF Core query filters then keep a Municipality
-/// Administrator inside their own municipality on every page, whatever ids appear in the URL.
-/// </summary>
 public sealed class CircuitTenantInitializer(AuthenticationStateProvider authenticationState, TenantContext tenant)
     : ITenantContextInitializer
 {
@@ -33,10 +27,6 @@ public sealed class CircuitTenantInitializer(AuthenticationStateProvider authent
     }
 }
 
-/// <summary>
-/// Re-checks the signed-in account every few minutes while a circuit is open. A deleted account,
-/// a reset password or a deleted municipality ends the session instead of leaving it usable.
-/// </summary>
 internal sealed class IdentityRevalidatingAuthenticationStateProvider(
     ILoggerFactory loggerFactory,
     IServiceScopeFactory scopeFactory,
@@ -62,7 +52,6 @@ internal sealed class IdentityRevalidatingAuthenticationStateProvider(
     }
 }
 
-/// <summary>A one-off success or error banner that survives the navigation that follows a save.</summary>
 public sealed class FlashService
 {
     private int _navigationsToSurvive;
@@ -82,7 +71,6 @@ public sealed class FlashService
         Changed?.Invoke();
     }
 
-    /// <summary>Called by the layout on every navigation.</summary>
     public void OnNavigated()
     {
         if (_navigationsToSurvive > 0)
@@ -104,7 +92,6 @@ public sealed class FlashService
     }
 }
 
-/// <summary>Links to the other Aspire resources, resolved from service-discovery configuration.</summary>
 public sealed class ServiceLinks(IConfiguration configuration)
 {
     public string? PublicSite => Resolve("public");
@@ -128,13 +115,11 @@ public static class AdminUserExtensions
     public static string RoleDisplay(this ClaimsPrincipal user) =>
         user.IsSuperAdmin() ? AppRoles.DisplayName(AppRoles.SuperAdmin) : AppRoles.DisplayName(AppRoles.MunicipalityAdmin);
 
-    /// <summary>Relative URL of an image served by this app (see the /images endpoint in Program.cs).</summary>
     public static string? ImageUrl(this Guid? imageId) => imageId is null ? null : $"images/{imageId}";
 }
 
 public static class NavigationExtensions
 {
-    /// <summary>Accepts only a base-relative return path, so a crafted link cannot redirect off-site.</summary>
     public static string SafeReturnPath(string? returnUrl)
     {
         if (string.IsNullOrWhiteSpace(returnUrl)

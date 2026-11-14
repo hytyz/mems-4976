@@ -15,8 +15,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         _tenant = tenant;
     }
 
-    // Read by the global query filters below. EF Core re-evaluates context members per query,
-    // so one cached model serves every tenant.
     public bool IsUnrestricted => _tenant.IsUnrestricted;
     public int? CurrentTenantId => _tenant.TenantId;
 
@@ -53,7 +51,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                     "[ElectionDate] >= '2000-01-01' AND [ElectionDate] < '2101-01-01'");
             });
 
-            // NoAction: the image row itself is removed through its own MunicipalityId cascade.
             entity.HasOne(m => m.Logo)
                 .WithMany()
                 .HasForeignKey(m => m.LogoImageId)
@@ -66,7 +63,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(p => p.Name).HasMaxLength(100).IsRequired();
 
-            // A position name is unique within its municipality.
             entity.HasIndex(p => new { p.MunicipalityId, p.Name }).IsUnique();
 
             entity.ToTable(table => table.HasCheckConstraint(
@@ -94,15 +90,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(c => new { c.MunicipalityId, c.Name });
 
-            // Composite key: a candidate can only point at a position of its own municipality,
-            // so a row can never straddle two tenants even if application code has a bug.
             entity.HasOne(c => c.Position)
                 .WithMany(p => p.Candidates)
                 .HasForeignKey(c => new { c.PositionId, c.MunicipalityId })
                 .HasPrincipalKey(p => new { p.PositionId, p.MunicipalityId })
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // NoAction: SQL Server allows only one cascade path (Municipality → Position → Candidate).
             entity.HasOne(c => c.Municipality)
                 .WithMany(m => m.Candidates)
                 .HasForeignKey(c => c.MunicipalityId)
@@ -148,9 +141,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<ApplicationUser>(entity =>
         {
-            // Administrator accounts belong to their tenant and are removed with it.
-            // Users carry no query filter: sign-in has to find the account before any
-            // tenant is known. User management is Super Admin only and filters explicitly.
             entity.HasOne(u => u.Municipality)
                 .WithMany(m => m.Administrators)
                 .HasForeignKey(u => u.MunicipalityId)

@@ -114,8 +114,6 @@ public sealed class CandidateService(
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        // The tenant is taken from the position, and the position is looked up through the
-        // tenant filter: a position id from another municipality simply does not exist here.
         var position = await db.Positions.AsNoTracking()
             .FirstOrDefaultAsync(p => p.PositionId == input.PositionId, cancellationToken);
         if (position is null)
@@ -153,7 +151,6 @@ public sealed class CandidateService(
             return Result<CandidateDto>.NotFound(NotFoundMessage);
         }
 
-        // A candidate may change position, but only within their own municipality.
         bool positionOk = await db.Positions.AnyAsync(
             p => p.PositionId == input.PositionId && p.MunicipalityId == entity.MunicipalityId, cancellationToken);
         if (!positionOk)

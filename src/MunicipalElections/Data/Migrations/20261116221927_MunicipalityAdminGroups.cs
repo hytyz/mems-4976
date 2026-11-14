@@ -4,10 +4,8 @@
 
 namespace MunicipalElections.Data.Migrations
 {
-    /// <inheritdoc />
     public partial class MunicipalityAdminGroups : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
@@ -18,9 +16,6 @@ namespace MunicipalElections.Data.Migrations
                 nullable: false,
                 defaultValue: "");
 
-            // Carry existing data over to the new model: every municipality gets its own
-            // admin group (Identity role), and the users that were linked to a municipality
-            // through the MunicipalityAdmins join table become members of that group.
             migrationBuilder.Sql(
                 "UPDATE Municipalities SET AdminRoleName = Name || ' Admin';");
 
@@ -41,7 +36,6 @@ namespace MunicipalElections.Data.Migrations
                 JOIN AspNetRoles r ON r.Name = m.AdminRoleName;
                 """);
 
-            // The single shared "MunicipalityAdmin" role is replaced by the per-municipality groups.
             migrationBuilder.Sql(
                 """
                 DELETE FROM AspNetUserRoles WHERE RoleId IN (SELECT Id FROM AspNetRoles WHERE Name = 'MunicipalityAdmin');
@@ -58,7 +52,6 @@ namespace MunicipalElections.Data.Migrations
                 unique: true);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

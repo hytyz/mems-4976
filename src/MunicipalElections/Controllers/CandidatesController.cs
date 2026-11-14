@@ -20,10 +20,6 @@ public class CandidatesController : Controller
         _access = access;
     }
 
-    /// <summary>
-    /// Candidates visible to the current user. Visitors and SuperAdmins see everyone;
-    /// a signed-in municipality admin only sees the candidates of their own municipality.
-    /// </summary>
     private async Task<IQueryable<Candidate>> VisibleCandidatesAsync()
     {
         var scope = await _access.GetRestrictedScopeAsync(User);

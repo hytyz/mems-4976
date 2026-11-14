@@ -14,7 +14,6 @@ namespace MunicipalElections.Data.Migrations
     [Migration("20261116221927_MunicipalityAdminGroups")]
     partial class MunicipalityAdminGroups
     {
-        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618

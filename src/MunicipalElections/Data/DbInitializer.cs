@@ -7,8 +7,6 @@ namespace MunicipalElections.Data;
 
 public static class DbInitializer
 {
-    // Initial password for accounts the seeder creates. It is only ever used when an
-    // account does not exist yet; existing accounts are never touched on startup.
     private const string InitialPassword = "P@$$w0rd";
 
     private record SeedCandidate(string Name, string Profile, string? Email = null, string? Website = null, string? SocialX = null, Endorsement? Endorsement = null);
@@ -117,7 +115,6 @@ public static class DbInitializer
 
         await db.Database.MigrateAsync();
 
-        // Municipalities (first run only).
         if (!await db.Municipalities.AnyAsync())
         {
             foreach (var seed in SeedData)
@@ -135,7 +132,6 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // Positions and candidates for every seeded municipality that has none yet.
         foreach (var seed in SeedData)
         {
             var municipality = await db.Municipalities.FirstOrDefaultAsync(m => m.Name == seed.Name);
@@ -184,14 +180,12 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // Roles: one system-wide role plus a distinct admin group per municipality.
         await EnsureRoleAsync(roleManager, Roles.SuperAdmin);
         foreach (var roleName in await db.Municipalities.Select(m => m.AdminRoleName).ToListAsync())
         {
             await EnsureRoleAsync(roleManager, roleName);
         }
 
-        // Users. Created once; an existing account (and its password) is left alone.
         await EnsureUserAsync(userManager, "super", Roles.SuperAdmin);
         if (await roleManager.RoleExistsAsync(Roles.ForMunicipality("Pitt Meadows")))
         {

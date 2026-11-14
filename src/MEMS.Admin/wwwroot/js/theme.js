@@ -1,4 +1,3 @@
-// Light/dark mode (a per-browser convenience kept in localStorage).
 (function () {
   var root = document.documentElement;
   try {
@@ -8,9 +7,8 @@
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       root.setAttribute('data-bs-theme', 'dark');
     }
-  } catch (e) { /* storage unavailable: keep the default */ }
+  } catch (e) { }
 
-  // Delegated, so it keeps working after Blazor re-renders the button.
   document.addEventListener('click', function (event) {
     var button = event.target.closest ? event.target.closest('[data-theme-toggle]') : null;
     if (!button) {

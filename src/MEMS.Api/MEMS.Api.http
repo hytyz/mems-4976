@@ -1,31 +1,24 @@
-# MEMS API – manual tests (Visual Studio / VS Code REST Client).
-# Start the solution through MEMS.AppHost first. The API listens on https://localhost:7045.
-# Full interactive documentation: https://localhost:7045/swagger
-
 @api = https://localhost:7045
 
-### ---------- Public reads (no token) ----------
-
-### Tenant directory
+###
 GET {{api}}/api/municipalities
 
-### One tenant's public profile
+###
 GET {{api}}/api/burnaby
 
-### Burnaby positions
+###
 GET {{api}}/api/burnaby/positions
 
-### Burnaby candidates: name search, position filter, paging
+###
 GET {{api}}/api/burnaby/candidates?search=zhao&page=1&pageSize=9
 
-### Unknown tenant -> 404 ProblemDetails
+###
 GET {{api}}/api/nowhere/candidates
 
-### A Surrey candidate requested through the Burnaby URL -> 404 (tenant isolation)
+###
 GET {{api}}/api/burnaby/candidates/15
 
-### ---------- Sign in ----------
-
+###
 # @name burnabyLogin
 POST {{api}}/api/auth/login
 Content-Type: application/json
@@ -44,45 +37,41 @@ Content-Type: application/json
 ###
 @superToken = {{superLogin.response.body.accessToken}}
 
-### Wrong password -> 401 (same message as an unknown user)
+###
 POST {{api}}/api/auth/login
 Content-Type: application/json
 
 { "userName": "burnabyadmin", "password": "wrong" }
 
-### ---------- Writes as a Municipality Administrator ----------
-
-### Create a position in the administrator's own tenant -> 201
+###
 POST {{api}}/api/burnaby/positions
 Authorization: Bearer {{burnabyToken}}
 Content-Type: application/json
 
 { "name": "Park Board Commissioner", "seatsAvailable": 3 }
 
-### Write to another tenant -> 403 (enforced by the API, not the UI)
+###
 POST {{api}}/api/surrey/positions
 Authorization: Bearer {{burnabyToken}}
 Content-Type: application/json
 
 { "name": "Not allowed", "seatsAvailable": 1 }
 
-### Invalid body -> 400 with field errors
+###
 POST {{api}}/api/burnaby/candidates
 Authorization: Bearer {{burnabyToken}}
 Content-Type: application/json
 
 { "name": "A", "email": "not-an-email", "website": "javascript:alert(1)", "positionId": 1 }
 
-### Anonymous write -> 401
+###
 DELETE {{api}}/api/burnaby/candidates/1
 
-### Municipality Administrators cannot delete tenants -> 403
+###
 DELETE {{api}}/api/municipalities/2
 Authorization: Bearer {{burnabyToken}}
 
-### ---------- Writes as a Super Admin ----------
-
-### Create a tenant -> 201
+###
 POST {{api}}/api/municipalities
 Authorization: Bearer {{superToken}}
 Content-Type: application/json
@@ -96,7 +85,7 @@ Content-Type: application/json
   "themeColor": "#9a3412"
 }
 
-### Reserved or duplicate slug -> 400 / 409
+###
 POST {{api}}/api/municipalities
 Authorization: Bearer {{superToken}}
 Content-Type: application/json

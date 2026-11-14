@@ -118,7 +118,6 @@ else if (input is not null)
 
         if (!IsEdit)
         {
-            // Only a Super Admin creates tenants (the service enforces this as well).
             accessDenied = !isSuperAdmin;
             input = new MunicipalityInput { ElectionDate = new DateOnly(DateTime.Today.Year, 10, 17) };
             return;
@@ -143,7 +142,6 @@ else if (input is not null)
         };
     }
 
-    // Fills the slug from the name, but never overwrites a slug the user typed themselves.
     private void SuggestSlug()
     {
         if (IsEdit || input is null)

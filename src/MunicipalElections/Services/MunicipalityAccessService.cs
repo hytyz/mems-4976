@@ -9,19 +9,13 @@ namespace MunicipalElections.Services;
 
 public static class Roles
 {
-    /// <summary>System-wide administrators.</summary>
     public const string SuperAdmin = "SuperAdmin";
 
-    /// <summary>
-    /// Name of the distinct admin group (Identity role) for one municipality,
-    /// e.g. "Pitt Meadows Admin". Each municipality gets its own role.
-    /// </summary>
     public static string ForMunicipality(string municipalityName) => $"{municipalityName.Trim()} Admin";
 }
 
 public static class Policies
 {
-    /// <summary>SuperAdmin, or a member of at least one municipality admin group.</summary>
     public const string AdminArea = "AdminArea";
 }
 
@@ -57,7 +51,6 @@ public class MunicipalityAccessService
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    // Per-request cache (the service is scoped) so repeated checks cost one query.
     private string? _cachedUserId;
     private List<int>? _cachedIds;
 
@@ -72,10 +65,6 @@ public class MunicipalityAccessService
         return user.Identity?.IsAuthenticated == true && user.IsInRole(Roles.SuperAdmin);
     }
 
-    /// <summary>
-    /// Municipalities the user may administer: all of them for a SuperAdmin, otherwise
-    /// the municipalities whose admin group (role) the user belongs to.
-    /// </summary>
     public async Task<List<int>> GetMunicipalityIdsAsync(ClaimsPrincipal user)
     {
         if (user.Identity?.IsAuthenticated != true)
@@ -96,8 +85,6 @@ public class MunicipalityAccessService
 
         if (_cachedIds is null || _cachedUserId != userId)
         {
-            // Role membership is read from the database (not the cookie) so that
-            // changes made by a SuperAdmin take effect immediately.
             _cachedIds = await (
                 from userRole in _db.UserRoles
                 join role in _db.Roles on userRole.RoleId equals role.Id
@@ -110,10 +97,6 @@ public class MunicipalityAccessService
         return _cachedIds;
     }
 
-    /// <summary>
-    /// For a signed-in municipality admin, the municipality ids they are restricted to
-    /// everywhere on the site. Null means "no restriction" (visitors and SuperAdmins).
-    /// </summary>
     public async Task<List<int>?> GetRestrictedScopeAsync(ClaimsPrincipal user)
     {
         if (user.Identity?.IsAuthenticated != true || user.IsInRole(Roles.SuperAdmin))

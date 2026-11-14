@@ -54,7 +54,6 @@
 
     private async Task SignInAsync()
     {
-        // The same message for an unknown user and a wrong password, so usernames cannot be probed.
         const string failure = "The username or password is incorrect.";
 
         var user = await UserManager.FindByNameAsync(Input.UserName.Trim());
@@ -65,7 +64,6 @@
             return;
         }
 
-        // A Municipality Administrator must be assigned to exactly one existing municipality.
         if (await UserManager.IsInRoleAsync(user, AppRoles.MunicipalityAdmin) && user.MunicipalityId is null)
         {
             Logger.LogWarning("Admin sign-in refused: {UserName} has no municipality", user.UserName);

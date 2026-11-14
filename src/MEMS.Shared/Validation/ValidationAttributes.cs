@@ -2,10 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MEMS.Shared.Validation;
 
-/// <summary>
-/// An absolute http(s) URL. Stricter than <see cref="UrlAttribute"/>, which also accepts ftp://,
-/// and safe to render as a link (no javascript: or data: schemes can pass).
-/// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class HttpUrlAttribute : ValidationAttribute
 {
@@ -27,7 +23,6 @@ public sealed class HttpUrlAttribute : ValidationAttribute
     }
 }
 
-/// <summary>A tenant URL segment: lowercase letters, digits and single hyphens, and not a reserved word.</summary>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class TenantSlugAttribute : ValidationAttribute
 {
@@ -35,7 +30,7 @@ public sealed class TenantSlugAttribute : ValidationAttribute
     {
         if (value is not string slug || slug.Length == 0)
         {
-            return ValidationResult.Success; // [Required] reports missing values.
+            return ValidationResult.Success;
         }
 
         string[] members = context.MemberName is null ? [] : [context.MemberName];
@@ -53,7 +48,6 @@ public sealed class TenantSlugAttribute : ValidationAttribute
     }
 }
 
-/// <summary>Rejects dates outside a sane window, so a typo cannot store year 0202 or 20260.</summary>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class ElectionDateAttribute : ValidationAttribute
 {

@@ -23,10 +23,6 @@ public class VotingGuideController : Controller
         _env = env;
     }
 
-    /// <summary>
-    /// The voting guide is a visitor feature. Administrators (anyone signed in)
-    /// cannot view it or shortlist candidates, even by posting to these actions directly.
-    /// </summary>
     public override void OnActionExecuting(ActionExecutingContext context)
     {
         if (!_guide.IsAvailable)
@@ -54,7 +50,6 @@ public class VotingGuideController : Controller
             return NotFound();
         }
 
-        // One municipality per guide, and no more picks per position than seats.
         string? blocked = await _guide.GetBlockReasonAsync(candidate);
         if (blocked != null)
         {

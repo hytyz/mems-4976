@@ -58,7 +58,6 @@ namespace MunicipalElections.Areas.Identity.Pages.Account
             {
                 _logger.LogInformation("User logged in.");
 
-                // Administrators land on the admin dashboard unless they were heading somewhere specific.
                 if (returnUrl == Url.Content("~/"))
                 {
                     return RedirectToAction("Index", "Dashboard", new { area = "Admin" });

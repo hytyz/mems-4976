@@ -9,10 +9,6 @@ using MunicipalElections.Services;
 
 namespace MunicipalElections.Areas.Admin.Controllers;
 
-/// <summary>
-/// Administrator accounts. There is no public registration: only a SuperAdmin
-/// can create, remove or reset the password of an administrator.
-/// </summary>
 [Area("Admin")]
 [Authorize(Roles = Roles.SuperAdmin)]
 public class UsersController : Controller
@@ -173,7 +169,6 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>Creates an administrator account and adds it to one admin group.</summary>
     internal static async Task<IdentityResult> CreateAdminAsync(
         UserManager<ApplicationUser> userManager, string userName, string password, string roleName)
     {

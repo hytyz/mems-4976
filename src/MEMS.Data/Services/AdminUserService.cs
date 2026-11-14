@@ -9,10 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace MEMS.Data.Services;
 
-/// <summary>
-/// Administrator accounts. There is no self-registration: only a Super Admin can create an
-/// account, reset its password or delete it.
-/// </summary>
 public interface IAdminUserService
 {
     Task<Result<List<AdminUserDto>>> ListAsync(CancellationToken cancellationToken = default);
@@ -67,7 +63,6 @@ public sealed class AdminUserService(
             return Result<AdminUserDto>.Invalid(errors);
         }
 
-        // A Super Admin never has a tenant; a Municipality Administrator has exactly one.
         int? municipalityId = input.Role == AppRoles.MunicipalityAdmin ? input.MunicipalityId : null;
 
         await using var scope = scopeFactory.CreateAsyncScope();
@@ -126,7 +121,6 @@ public sealed class AdminUserService(
             return Result<bool>.NotFound(NotFoundMessage);
         }
 
-        // Validate first so a rejected password does not leave the account without one.
         foreach (var validator in userManager.PasswordValidators)
         {
             var validation = await validator.ValidateAsync(userManager, user, input.Password);
@@ -143,7 +137,6 @@ public sealed class AdminUserService(
             return Result<bool>.Invalid(ToErrors(reset, nameof(input.Password)));
         }
 
-        // Clears any lockout and (via the new security stamp) signs the account out everywhere.
         await userManager.SetLockoutEndDateAsync(user, null);
         logger.LogInformation("Password reset for administrator {UserName}", user.UserName);
         return Result<bool>.Ok(true);

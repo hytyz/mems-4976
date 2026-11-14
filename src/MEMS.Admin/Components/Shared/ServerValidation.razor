@@ -1,5 +1,3 @@
-@* Shows errors returned by the service layer (duplicate slug, position from another tenant, ...)
-   next to the matching fields, alongside the client-side DataAnnotations validation. *@
 @code {
     private ValidationMessageStore? store;
 
@@ -28,7 +26,6 @@
         store.Clear();
         foreach (var (field, messages) in errors)
         {
-            // Unknown or empty field names still show up in the ValidationSummary.
             var identifier = string.IsNullOrEmpty(field) || CurrentEditContext.Model.GetType().GetProperty(field) is null
                 ? new FieldIdentifier(CurrentEditContext.Model, string.Empty)
                 : CurrentEditContext.Field(field);

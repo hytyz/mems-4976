@@ -109,7 +109,6 @@
 
     private void Recover() => errorBoundary?.Recover();
 
-    // The full exception goes to the structured log (and the Aspire dashboard); the user only sees a friendly message.
     private void LogUnhandled(Exception exception)
     {
         if (!ReferenceEquals(exception, lastLogged))

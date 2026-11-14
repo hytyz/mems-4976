@@ -3,10 +3,6 @@ using Microsoft.AspNetCore.Components;
 
 namespace MEMS.Public.Components;
 
-/// <summary>
-/// Base for pages under <c>/{tenant}/...</c>. Keeps the visitor's current guide selections
-/// for that tenant up to date, so add/remove buttons always reflect what is stored.
-/// </summary>
 public abstract class TenantPage : ComponentBase, IDisposable
 {
     [Inject] protected VotingGuide Guide { get; set; } = default!;
@@ -18,10 +14,8 @@ public abstract class TenantPage : ComponentBase, IDisposable
 
     protected List<BallotEntry> Selections { get; private set; } = [];
 
-    /// <summary>A friendly message when data could not be loaded.</summary>
     protected string? LoadError { get; set; }
 
-    /// <summary>Feedback after a blocked "add to guide".</summary>
     protected string? GuideMessage { get; set; }
 
     protected override void OnInitialized() => Guide.Changed += OnGuideChanged;
@@ -30,7 +24,6 @@ public abstract class TenantPage : ComponentBase, IDisposable
 
     protected void ShowGuideMessage(string message) => GuideMessage = message;
 
-    /// <summary>Runs a load, turning an unreachable API into a message instead of a crash.</summary>
     protected async Task LoadSafelyAsync(Func<Task> load)
     {
         LoadError = null;

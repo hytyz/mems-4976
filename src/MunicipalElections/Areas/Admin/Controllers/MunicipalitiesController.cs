@@ -8,10 +8,6 @@ using MunicipalElections.Services;
 
 namespace MunicipalElections.Areas.Admin.Controllers;
 
-/// <summary>
-/// A SuperAdmin manages every municipality. A municipality admin sees and edits
-/// only the municipality whose admin group they belong to, and cannot create or delete.
-/// </summary>
 [Area("Admin")]
 [Authorize(Policy = Policies.AdminArea)]
 public class MunicipalitiesController : Controller
@@ -119,8 +115,6 @@ public class MunicipalitiesController : Controller
             return View(municipality);
         }
 
-        // The municipality, its admin group and (optionally) its first administrator
-        // are created together.
         _context.Add(municipality);
         await _context.SaveChangesAsync();
         await _roleManager.CreateAsync(new IdentityRole(municipality.AdminRoleName));
@@ -218,7 +212,6 @@ public class MunicipalitiesController : Controller
 
         if (renamed)
         {
-            // Keep the admin group named after the municipality; members stay in it.
             var role = await _roleManager.FindByNameAsync(existing.AdminRoleName);
             if (role != null)
             {
@@ -281,8 +274,6 @@ public class MunicipalitiesController : Controller
             _context.Municipalities.Remove(municipality);
             await _context.SaveChangesAsync();
 
-            // Remove the municipality's admin group too. Its former members keep their
-            // accounts but no longer have access to anything.
             var role = await _roleManager.FindByNameAsync(municipality.AdminRoleName);
             if (role != null)
             {

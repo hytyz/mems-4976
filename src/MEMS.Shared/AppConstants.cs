@@ -2,13 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace MEMS.Shared;
 
-/// <summary>Identity role names. There are exactly two roles in the system.</summary>
 public static class AppRoles
 {
-    /// <summary>Full system access across every tenant.</summary>
     public const string SuperAdmin = "SuperAdmin";
 
-    /// <summary>Manages exactly one tenant (the municipality stored on the user account).</summary>
     public const string MunicipalityAdmin = "MunicipalityAdmin";
 
     public static string DisplayName(string role) => role switch
@@ -21,21 +18,17 @@ public static class AppRoles
 
 public static class AppClaims
 {
-    /// <summary>Id of the municipality (tenant) a Municipality Administrator is assigned to.</summary>
     public const string TenantId = "tenant_id";
 
-    /// <summary>URL slug of that municipality.</summary>
     public const string TenantSlug = "tenant_slug";
 }
 
-/// <summary>Rules for the URL segment that identifies a tenant, e.g. <c>/burnaby</c>.</summary>
 public static partial class SlugRules
 {
     public const int MinLength = 2;
     public const int MaxLength = 50;
     public const string Pattern = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 
-    /// <summary>Segments that already mean something in the public site, admin site or API.</summary>
     public static readonly IReadOnlySet<string> Reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "admin", "api", "auth", "municipalities", "health", "alive", "account", "error", "not-found",
@@ -50,7 +43,6 @@ public static partial class SlugRules
 
     public static bool IsValid(string? slug) => IsWellFormed(slug) && !Reserved.Contains(slug!);
 
-    /// <summary>Suggests a slug for a municipality name ("Pitt Meadows" → "pitt-meadows").</summary>
     public static string Suggest(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -66,7 +58,6 @@ public static partial class SlugRules
     }
 }
 
-/// <summary>Limits applied to uploaded logos and candidate photographs at every layer.</summary>
 public static class ImageRules
 {
     public const long MaxBytes = 5 * 1024 * 1024;

@@ -8,11 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace MEMS.Data.Seeding;
 
-/// <summary>
-/// Applies EF Core migrations and seeds the tenants, their positions and candidates, the two
-/// roles and the administrator accounts. Safe to run on every start: it only adds what is missing
-/// and never touches an existing account or its password.
-/// </summary>
 public static class DbInitializer
 {
     public static async Task MigrateAndSeedAsync(
@@ -22,7 +17,6 @@ public static class DbInitializer
         var provider = scope.ServiceProvider;
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(DbInitializer));
 
-        // Seeding is a system task that spans every tenant.
         provider.GetRequiredService<TenantContext>().Unrestrict();
 
         var db = provider.GetRequiredService<ApplicationDbContext>();
@@ -34,8 +28,6 @@ public static class DbInitializer
 
     private static async Task SeedMunicipalitiesAsync(ApplicationDbContext db, ILogger logger, CancellationToken cancellationToken)
     {
-        // First run only. After that the municipalities belong to the administrators:
-        // one that was deleted on purpose is not brought back.
         if (await db.Municipalities.AnyAsync(cancellationToken))
         {
             return;

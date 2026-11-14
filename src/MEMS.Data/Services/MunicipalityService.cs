@@ -6,11 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace MEMS.Data.Services;
 
-/// <summary>
-/// Public tenant lookups. This is the only place that reads municipalities without the tenant
-/// query filter: it has to, because it is how a slug in a URL becomes a tenant in the first place.
-/// It exposes nothing but the municipality's own public details.
-/// </summary>
 public interface ITenantDirectory
 {
     Task<List<MunicipalityDto>> ListAsync(CancellationToken cancellationToken = default);
@@ -51,7 +46,6 @@ public sealed class TenantDirectory(IDbContextFactory<ApplicationDbContext> dbFa
 
 public interface IMunicipalityService
 {
-    /// <summary>The municipalities inside the caller's tenant boundary.</summary>
     Task<List<MunicipalityDto>> ListAsync(CancellationToken cancellationToken = default);
     Task<MunicipalityDto?> GetAsync(int id, CancellationToken cancellationToken = default);
     Task<Result<MunicipalityDto>> CreateAsync(MunicipalityInput input, CancellationToken cancellationToken = default);
@@ -136,7 +130,6 @@ public sealed class MunicipalityService(
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        // The query filter makes another tenant's municipality indistinguishable from a missing one.
         var entity = await db.Municipalities.FirstOrDefaultAsync(m => m.MunicipalityId == id, cancellationToken);
         if (entity is null)
         {
@@ -182,8 +175,6 @@ public sealed class MunicipalityService(
             return Result<bool>.NotFound(NotFoundMessage);
         }
 
-        // A tenant is removed with everything it owns: candidates (and their endorsements),
-        // positions, images and administrator accounts. Explicit order, one transaction.
         await db.InTransactionAsync(async () =>
         {
             await db.Candidates.Where(c => c.MunicipalityId == id).ExecuteDeleteAsync(cancellationToken);
@@ -264,7 +255,6 @@ public sealed class MunicipalityService(
         };
     }
 
-    /// <summary>Names and slugs are unique across all tenants, so this check deliberately ignores the tenant filter.</summary>
     private static async Task<Result<MunicipalityDto>?> FindDuplicateAsync(
         ApplicationDbContext db, MunicipalityInput input, int? exceptId, CancellationToken cancellationToken)
     {

@@ -5,11 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MEMS.Api.Infrastructure;
 
-/// <summary>
-/// Last line of defence: logs the full exception for operators (visible in the Aspire dashboard)
-/// and answers with a generic ProblemDetails. Stack traces, SQL and connection details never
-/// reach the client.
-/// </summary>
 public sealed class GlobalExceptionHandler(
     IProblemDetailsService problemDetails, ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
@@ -17,7 +12,7 @@ public sealed class GlobalExceptionHandler(
     {
         if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
         {
-            return true; // The client went away; nothing to report.
+            return true;
         }
 
         (int status, string title, string detail) = exception switch
@@ -47,7 +42,6 @@ public sealed class GlobalExceptionHandler(
 
 public static class ResultExtensions
 {
-    /// <summary>Translates a service result into the matching HTTP response.</summary>
     public static ActionResult ToProblem<T>(this ControllerBase controller, Result<T> result) => result.Status switch
     {
         ResultStatus.NotFound => controller.Problem(result.Message, statusCode: StatusCodes.Status404NotFound, title: "Not found"),
@@ -70,7 +64,6 @@ public static class ResultExtensions
         return controller.ValidationProblem(statusCode: status, title: title, modelStateDictionary: controller.ModelState);
     }
 
-    /// <summary>Reads an uploaded image into memory, refusing anything over the size limit before buffering it.</summary>
     public static async Task<(byte[]? Content, string? Error)> ReadImageAsync(this IFormFile? file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)

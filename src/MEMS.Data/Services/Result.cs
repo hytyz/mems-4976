@@ -13,10 +13,6 @@ public enum ResultStatus
     Forbidden
 }
 
-/// <summary>
-/// Outcome of a service call. Both front ends translate it: the API into HTTP status codes
-/// and ProblemDetails, the Blazor admin into validation messages and alerts.
-/// </summary>
 public sealed class Result<T>
 {
     private Result(ResultStatus status, T? value, string? message, IReadOnlyDictionary<string, string[]>? errors)
@@ -30,10 +26,8 @@ public sealed class Result<T>
     public ResultStatus Status { get; }
     public T? Value { get; }
 
-    /// <summary>A message that is safe to show to the user.</summary>
     public string? Message { get; }
 
-    /// <summary>Field name → messages, for <see cref="ResultStatus.Invalid"/> and <see cref="ResultStatus.Conflict"/>.</summary>
     public IReadOnlyDictionary<string, string[]> Errors { get; }
 
     public bool IsSuccess => Status == ResultStatus.Ok;
@@ -56,10 +50,6 @@ public sealed class Result<T>
 
 internal static class InputValidator
 {
-    /// <summary>
-    /// Runs the data-annotation rules of a contract. The services call this themselves so the
-    /// rules hold no matter which front end (or future client) is calling.
-    /// </summary>
     public static IReadOnlyDictionary<string, string[]>? Validate(object input)
     {
         var results = new List<ValidationResult>();
@@ -78,14 +68,9 @@ internal static class InputValidator
 
 internal static class DbExtensions
 {
-    /// <summary>True when SQL Server rejected the save because of a unique index or constraint.</summary>
     public static bool IsUniqueViolation(this DbUpdateException exception) =>
         exception.InnerException is SqlException { Number: 2601 or 2627 };
 
-    /// <summary>
-    /// Runs several statements atomically. Goes through the execution strategy because the
-    /// Aspire SQL Server integration enables connection retries, which forbid bare transactions.
-    /// </summary>
     public static Task InTransactionAsync(this ApplicationDbContext db, Func<Task> work, CancellationToken cancellationToken)
     {
         var strategy = db.Database.CreateExecutionStrategy();

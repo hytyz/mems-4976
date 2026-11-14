@@ -21,7 +21,6 @@ public class DashboardController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // Everything on the dashboard is limited to the municipalities this user administers.
         var municipalityIds = await _access.GetMunicipalityIdsAsync(User);
         bool isSuperAdmin = _access.IsSuperAdmin(User);
 

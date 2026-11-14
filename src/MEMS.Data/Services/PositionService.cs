@@ -111,7 +111,6 @@ public sealed class PositionService(
             return Result<PositionDto>.Conflict(nameof(input.Name), DuplicateMessage);
         }
 
-        // A position never moves to another municipality, so MunicipalityId is not updatable.
         entity.Name = input.Name;
         entity.SeatsAvailable = input.SeatsAvailable!.Value;
 
@@ -137,7 +136,6 @@ public sealed class PositionService(
             return Result<bool>.NotFound(NotFoundMessage);
         }
 
-        // Candidates go with their position (cascade); their photographs are removed explicitly.
         var photoIds = await db.Candidates
             .Where(c => c.PositionId == id && c.PhotoImageId != null)
             .Select(c => c.PhotoImageId!.Value)

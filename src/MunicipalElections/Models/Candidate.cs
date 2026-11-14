@@ -28,7 +28,6 @@ public class Candidate
     public int PositionId { get; set; }
     public Position? Position { get; set; }
 
-    // Bonus: social media and video links
     [Url(ErrorMessage = "Video URL must be a valid URL.")]
     [StringLength(300)]
     public string? VideoUrl { get; set; }

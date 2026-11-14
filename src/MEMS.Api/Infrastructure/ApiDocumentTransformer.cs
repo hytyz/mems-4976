@@ -3,7 +3,6 @@ using Microsoft.OpenApi;
 
 namespace MEMS.Api.Infrastructure;
 
-/// <summary>Adds the title, description and the bearer-token scheme to the OpenAPI document.</summary>
 public sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
 {
     public Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
@@ -33,7 +32,6 @@ public sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             [new OpenApiSecuritySchemeReference("Bearer", document)] = []
         };
 
-        // Only the write operations need the token.
         foreach (var operation in document.Paths.Values
                      .Where(path => path.Operations is not null)
                      .SelectMany(path => path.Operations!)

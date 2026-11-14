@@ -5,15 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace MEMS.Public.Services;
 
-/// <summary>The API could not be reached or failed. The message is safe to show to visitors.</summary>
 public sealed class ApiUnavailableException()
     : Exception("Election information could not be loaded right now. Please check your connection and try again.");
 
-/// <summary>
-/// Read-only access to the MEMS Web API. The public site never touches the database: every
-/// piece of data comes through these calls, and every call is scoped to one tenant by its URL
-/// (<c>/api/{tenant}/...</c>). Ballot selections are never part of any request.
-/// </summary>
 public sealed class ApiClient(HttpClient http, ILogger<ApiClient> logger)
 {
     public Task<List<MunicipalityDto>?> GetMunicipalitiesAsync(CancellationToken cancellationToken = default) =>
@@ -43,10 +37,6 @@ public sealed class ApiClient(HttpClient http, ILogger<ApiClient> logger)
                ?? new PagedResult<CandidateDto>();
     }
 
-    /// <summary>
-    /// Every candidate of the tenant. The voting guide uses this so that it can look up the
-    /// visitor's selections locally, without ever telling the server which candidates were chosen.
-    /// </summary>
     public async Task<List<CandidateDto>> GetAllCandidatesAsync(string slug, CancellationToken cancellationToken = default)
     {
         var all = new List<CandidateDto>();
@@ -68,7 +58,6 @@ public sealed class ApiClient(HttpClient http, ILogger<ApiClient> logger)
 
     private static string TenantPath(string slug) => $"api/{Uri.EscapeDataString(slug.Trim().ToLowerInvariant())}";
 
-    /// <summary>Returns null on 404 (unknown tenant or record); throws <see cref="ApiUnavailableException"/> otherwise.</summary>
     private async Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
     {
         HttpResponseMessage response;
@@ -100,14 +89,12 @@ public sealed class ApiClient(HttpClient http, ILogger<ApiClient> logger)
     }
 }
 
-/// <summary>Absolute URLs of API resources that the browser loads directly, such as images.</summary>
 public sealed class ApiUrls(Uri apiBase)
 {
     public string? Image(string slug, Guid? imageId) =>
         imageId is null ? null : new Uri(apiBase, $"api/{Uri.EscapeDataString(slug)}/images/{imageId}").ToString();
 }
 
-/// <summary>Tenant details are needed by every page of a tenant; fetch each one once.</summary>
 public sealed class TenantCache(ApiClient api)
 {
     private readonly Dictionary<string, Task<MunicipalityDto?>> _tenants = new(StringComparer.OrdinalIgnoreCase);

@@ -33,8 +33,6 @@
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
-    // Sign-in pages are plain server-rendered forms (they set the auth cookie);
-    // everything else runs as interactive Blazor Server.
     private IComponentRenderMode? PageRenderMode =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
 }

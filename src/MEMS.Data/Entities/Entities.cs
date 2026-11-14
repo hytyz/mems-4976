@@ -2,16 +2,11 @@ using Microsoft.AspNetCore.Identity;
 
 namespace MEMS.Data.Entities;
 
-/// <summary>
-/// A municipality. Each municipality is one tenant: every other row in the system
-/// (positions, candidates, images, administrator accounts) points back to it.
-/// </summary>
 public class Municipality
 {
     public int MunicipalityId { get; set; }
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>URL segment that identifies the tenant, e.g. "burnaby". Unique.</summary>
     public string Slug { get; set; } = string.Empty;
 
     public string Province { get; set; } = string.Empty;
@@ -60,10 +55,6 @@ public class Candidate
     public int PositionId { get; set; }
     public Position? Position { get; set; }
 
-    /// <summary>
-    /// The tenant. Always equal to the position's municipality: the database enforces
-    /// that with a composite foreign key (PositionId, MunicipalityId) → Positions.
-    /// </summary>
     public int MunicipalityId { get; set; }
     public Municipality? Municipality { get; set; }
 
@@ -81,10 +72,6 @@ public class Endorsement
     public Candidate? Candidate { get; set; }
 }
 
-/// <summary>
-/// An uploaded logo or candidate photograph. Stored in SQL Server so that the Admin app
-/// (which uploads) and the API (which serves) need no shared disk.
-/// </summary>
 public class StoredImage
 {
     public Guid StoredImageId { get; set; }
@@ -97,10 +84,6 @@ public class StoredImage
     public Municipality? Municipality { get; set; }
 }
 
-/// <summary>
-/// An administrator account. A Municipality Administrator has exactly one
-/// <see cref="MunicipalityId"/>; a Super Admin has none.
-/// </summary>
 public class ApplicationUser : IdentityUser
 {
     public int? MunicipalityId { get; set; }

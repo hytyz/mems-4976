@@ -10,7 +10,6 @@ namespace MEMS.Data.Identity;
 
 public static class IdentityDefaults
 {
-    /// <summary>One password and lockout policy for the Admin app, the API and the seeder.</summary>
     public static void Configure(IdentityOptions options)
     {
         options.Password.RequiredLength = PasswordRules.MinLength;
@@ -28,10 +27,6 @@ public static class IdentityDefaults
     }
 }
 
-/// <summary>
-/// Adds the administrator's tenant to their identity, so the cookie (Admin) and the
-/// JWT (API) both carry the tenant boundary alongside the role.
-/// </summary>
 public sealed class TenantClaimsPrincipalFactory(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
@@ -43,7 +38,6 @@ public sealed class TenantClaimsPrincipalFactory(
     {
         var identity = await base.GenerateClaimsAsync(user);
 
-        // Only a Municipality Administrator is given a tenant, and only one that still exists.
         if (user.MunicipalityId is int municipalityId
             && identity.HasClaim(identity.RoleClaimType, AppRoles.MunicipalityAdmin)
             && await tenants.FindByIdAsync(municipalityId) is { } municipality)

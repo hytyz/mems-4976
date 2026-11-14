@@ -1,6 +1,3 @@
-@* Frame for every tenant page: resolves the slug in the URL to a municipality through the API,
-   applies that municipality's branding (colour, logo, tagline) and shows its navigation.
-   An unknown slug shows a friendly "not found"; nothing from another municipality is ever shown. *@
 @implements IDisposable
 @inject TenantCache Tenants
 @inject VotingGuide Guide
@@ -118,7 +115,6 @@ else
         }
     }
 
-    /// <summary>White or near-black text, whichever reads better on the tenant's colour.</summary>
     private static string ContrastColor(string hex)
     {
         if (hex.Length != 7)

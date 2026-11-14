@@ -27,11 +27,6 @@ public class AuthController(
 {
     public const string LoginRateLimit = "login";
 
-    /// <summary>Signs an administrator in and returns a bearer token for the write endpoints.</summary>
-    /// <remarks>
-    /// The token carries the administrator's role and, for a Municipality Administrator, the one
-    /// tenant they may manage. Five wrong passwords lock the account for five minutes.
-    /// </remarks>
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting(LoginRateLimit)]
@@ -41,7 +36,6 @@ public class AuthController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
     {
-        // One answer for "no such user" and "wrong password", so usernames cannot be probed.
         const string failure = "The username or password is incorrect.";
 
         var user = await userManager.FindByNameAsync(request.UserName.Trim());
@@ -65,7 +59,6 @@ public class AuthController(
             return Problem(failure, statusCode: StatusCodes.Status401Unauthorized, title: "Sign-in failed");
         }
 
-        // Same claims factory as the Admin app, so both see the identical role and tenant.
         var principal = await claimsFactory.CreateAsync(user);
         string role = principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
         string? tenantId = principal.FindFirstValue(AppClaims.TenantId);

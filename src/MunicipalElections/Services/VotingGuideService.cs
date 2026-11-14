@@ -5,14 +5,6 @@ using MunicipalElections.Models;
 
 namespace MunicipalElections.Services;
 
-/// <summary>
-/// A visitor's personal voting guide, kept in their session.
-/// Rules, mirroring a real ballot:
-///  - a guide covers one municipality only (you vote where you live);
-///  - for each position you may pick at most as many candidates as there are seats
-///    (so one mayor, but e.g. six councillors);
-///  - administrators do not get a voting guide at all.
-/// </summary>
 public class VotingGuideService
 {
     private const string SessionKey = "VotingGuide";
@@ -26,7 +18,6 @@ public class VotingGuideService
         _db = db;
     }
 
-    /// <summary>Only visitors build a guide; anyone signed in is an administrator.</summary>
     public bool IsAvailable => _http.HttpContext?.User.Identity?.IsAuthenticated != true;
 
     public List<int> GetIds()
@@ -50,7 +41,6 @@ public class VotingGuideService
 
     public bool Contains(int candidateId) => GetIds().Contains(candidateId);
 
-    /// <summary>The candidates currently in the guide, with position and municipality loaded.</summary>
     public async Task<List<Candidate>> GetCandidatesAsync()
     {
         var ids = GetIds();
@@ -66,10 +56,6 @@ public class VotingGuideService
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Explains why the candidate cannot be added to the guide, or returns null when they can.
-    /// The candidate must have Position and Position.Municipality loaded.
-    /// </summary>
     public async Task<string?> GetBlockReasonAsync(Candidate candidate)
     {
         var position = candidate.Position!;

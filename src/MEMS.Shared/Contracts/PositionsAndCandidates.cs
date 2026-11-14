@@ -13,7 +13,6 @@ public class PositionDto
     public int CandidateCount { get; set; }
 }
 
-/// <summary>Body of POST and PUT /api/{tenant}/positions. The tenant comes from the URL, never the body.</summary>
 public class PositionInput
 {
     [Required(ErrorMessage = "Position name is required.")]
@@ -40,7 +39,6 @@ public class CandidateDto
     public string Name { get; set; } = string.Empty;
     public string? Profile { get; set; }
 
-    /// <summary>Id of the photograph, or null when none was uploaded.</summary>
     public Guid? PhotoImageId { get; set; }
 
     public string? Website { get; set; }
@@ -63,7 +61,6 @@ public class CandidateDto
     public List<EndorsementDto> Endorsements { get; set; } = [];
 }
 
-/// <summary>Body of POST and PUT /api/{tenant}/candidates.</summary>
 public class CandidateInput
 {
     [Required(ErrorMessage = "Candidate name is required.")]
@@ -107,20 +104,17 @@ public class CandidateInput
     [Display(Name = "LinkedIn URL")]
     public string? SocialLinkedIn { get; set => field = Text.NullIfBlank(value); }
 
-    /// <summary>The position the candidate is running for. It must belong to the tenant in the URL.</summary>
     [Required(ErrorMessage = "Choose the position this candidate is running for.")]
     [Range(1, int.MaxValue, ErrorMessage = "Choose the position this candidate is running for.")]
     [Display(Name = "Position")]
     public int? PositionId { get; set; }
 }
 
-/// <summary>Query string of GET /api/{tenant}/candidates.</summary>
 public class CandidateQuery
 {
     public const int DefaultPageSize = 9;
     public const int MaxPageSize = 100;
 
-    /// <summary>Matches part of the candidate's name.</summary>
     [StringLength(100, ErrorMessage = "Search text cannot exceed 100 characters.")]
     public string? Search { get; set; }
 
@@ -143,7 +137,6 @@ public class PagedResult<T>
     public int TotalPages { get; set; } = 1;
 }
 
-/// <summary>Returned after an image upload.</summary>
 public class ImageUploadResult
 {
     public Guid ImageId { get; set; }

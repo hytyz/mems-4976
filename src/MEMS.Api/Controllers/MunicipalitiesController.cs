@@ -7,22 +7,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MEMS.Api.Controllers;
 
-/// <summary>Tenant management. Each municipality is one tenant.</summary>
 [ApiController]
 [Route("api/municipalities")]
 [Produces("application/json")]
 [Tags("Municipalities (tenants)")]
 public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityService municipalities) : ControllerBase
 {
-    /// <summary>Lists every municipality: the public tenant directory.</summary>
-    /// <remarks>Returns only each municipality's own public details, never positions or candidates.</remarks>
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType<List<MunicipalityDto>>(StatusCodes.Status200OK)]
     public async Task<List<MunicipalityDto>> GetAll(CancellationToken cancellationToken) =>
         await directory.ListAsync(cancellationToken);
 
-    /// <summary>Gets one municipality by id.</summary>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     [ProducesResponseType<MunicipalityDto>(StatusCodes.Status200OK)]
@@ -35,7 +31,6 @@ public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityS
             : municipality;
     }
 
-    /// <summary>Creates a municipality (a new tenant). Super Admin only.</summary>
     [HttpPost]
     [Authorize(Policy = ApiPolicies.SuperAdmin)]
     [ProducesResponseType<MunicipalityDto>(StatusCodes.Status201Created)]
@@ -51,7 +46,6 @@ public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityS
             : this.ToProblem(result);
     }
 
-    /// <summary>Updates a municipality. A Municipality Administrator can only update their own, and cannot change its slug.</summary>
     [HttpPut("{id:int}")]
     [Authorize(Policy = ApiPolicies.AnyAdmin)]
     [ProducesResponseType<MunicipalityDto>(StatusCodes.Status200OK)]
@@ -66,7 +60,6 @@ public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityS
         return result.IsSuccess ? result.Value! : this.ToProblem(result);
     }
 
-    /// <summary>Deletes a municipality with its positions, candidates, images and administrators. Super Admin only.</summary>
     [HttpDelete("{id:int}")]
     [Authorize(Policy = ApiPolicies.SuperAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -79,7 +72,6 @@ public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityS
         return result.IsSuccess ? NoContent() : this.ToProblem(result);
     }
 
-    /// <summary>Uploads or replaces the municipality's logo (JPG, PNG, GIF or WEBP, at most 5 MB).</summary>
     [HttpPut("{id:int}/logo")]
     [Authorize(Policy = ApiPolicies.AnyAdmin)]
     [Consumes("multipart/form-data")]
@@ -99,7 +91,6 @@ public class MunicipalitiesController(ITenantDirectory directory, IMunicipalityS
         return result.IsSuccess ? new ImageUploadResult { ImageId = result.Value } : this.ToProblem(result);
     }
 
-    /// <summary>Removes the municipality's logo.</summary>
     [HttpDelete("{id:int}/logo")]
     [Authorize(Policy = ApiPolicies.AnyAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

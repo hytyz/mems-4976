@@ -20,7 +20,6 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // A signed-in municipality admin only sees their own municipality.
         var scope = await _access.GetRestrictedScopeAsync(User);
 
         var municipalities = await _context.Municipalities

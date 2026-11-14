@@ -7,7 +7,6 @@ namespace MEMS.Data.Services;
 
 public sealed record ImageContent(string ContentType, byte[] Data);
 
-/// <summary>Identifies an image by its file signature. The file name and browser content type are never trusted.</summary>
 public static class ImageInspector
 {
     public static string? DetectContentType(ReadOnlySpan<byte> bytes)
@@ -35,7 +34,6 @@ public static class ImageInspector
         return null;
     }
 
-    /// <summary>Returns an error message, or null when the bytes are an acceptable image.</summary>
     public static string? Validate(byte[]? content, out string contentType)
     {
         contentType = string.Empty;
@@ -73,7 +71,6 @@ public static class ImageInspector
 
 public interface IImageService
 {
-    /// <summary>The image, or null when it does not exist inside the current tenant boundary.</summary>
     Task<ImageContent?> GetAsync(Guid imageId, CancellationToken cancellationToken = default);
 }
 

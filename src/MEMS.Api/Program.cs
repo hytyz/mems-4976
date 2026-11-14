@@ -16,18 +16,14 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// .NET Aspire: OpenTelemetry logs/traces/metrics, health checks, service discovery, resilience.
 builder.AddServiceDefaults();
 
-// SQL Server through the Aspire-managed connection string, plus the shared service layer.
 builder.AddMemsData();
 
-// The API sets the tenant boundary per request in TenantResolutionMiddleware.
 builder.Services.AddScoped<ITenantContextInitializer, NoOpTenantContextInitializer>();
 builder.Services.AddScoped<CurrentTenant>();
 builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<CurrentTenant>());
 
-// ---- Identity (accounts and roles only; the API issues tokens, not cookies) ----
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddIdentityCore<ApplicationUser>(IdentityDefaults.Configure)
     .AddRoles<IdentityRole>()
@@ -35,7 +31,6 @@ builder.Services.AddIdentityCore<ApplicationUser>(IdentityDefaults.Configure)
     .AddSignInManager()
     .AddClaimsPrincipalFactory<TenantClaimsPrincipalFactory>();
 
-// ---- Authentication: JWT bearer tokens ----
 var jwt = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 if (jwt.SigningKey.Length < JwtSettings.MinKeyLength)
 {
@@ -60,7 +55,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// ---- Authorization: role + tenant ----
 builder.Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiPolicies.SuperAdmin, policy => policy.RequireRole(AppRoles.SuperAdmin))
@@ -69,13 +63,11 @@ builder.Services.AddAuthorizationBuilder()
         .RequireRole(AppRoles.SuperAdmin, AppRoles.MunicipalityAdmin)
         .AddRequirements(new TenantAdminRequirement()));
 
-// ---- Errors: RFC 7807 ProblemDetails everywhere, nothing sensitive in the body ----
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddControllers();
 
-// Sign-in throttling on top of Identity's account lockout.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -84,8 +76,6 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 
-// The Blazor WebAssembly site runs in the browser on another origin. Its address is injected
-// by the AppHost (Cors:AllowedOrigins); nothing is allowed by default.
 string[] allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
     .WithOrigins(allowedOrigins.Select(origin => origin.TrimEnd('/')).ToArray())
@@ -97,7 +87,7 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer<ApiDocumen
 var app = builder.Build();
 
 app.UseExceptionHandler();
-app.UseStatusCodePages(); // 401/403/404/405 without a body become ProblemDetails too.
+app.UseStatusCodePages();
 
 app.MapOpenApi();
 app.UseSwaggerUI(options =>
@@ -111,15 +101,13 @@ app.UseRouting();
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
-app.UseMiddleware<TenantResolutionMiddleware>(); // after authentication, before authorization
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapDefaultEndpoints();
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
-// The API owns the schema: it applies migrations and seeds before it starts serving,
-// and the AppHost makes the Admin app wait for it.
 string seedPassword = builder.Configuration["Seed:AdminPassword"]
     ?? throw new InvalidOperationException(
         "Seed:AdminPassword is not configured. It is supplied by the Aspire AppHost parameter 'seed-admin-password'.");

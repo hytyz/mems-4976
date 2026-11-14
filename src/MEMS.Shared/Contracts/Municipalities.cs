@@ -3,33 +3,27 @@ using MEMS.Shared.Validation;
 
 namespace MEMS.Shared.Contracts;
 
-/// <summary>A municipality (tenant) as returned by the API.</summary>
 public class MunicipalityDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>URL segment that identifies the tenant, e.g. "burnaby".</summary>
     public string Slug { get; set; } = string.Empty;
 
     public string Province { get; set; } = string.Empty;
     public DateOnly ElectionDate { get; set; }
     public string? Description { get; set; }
 
-    /// <summary>Short public-facing line shown in the tenant's banner.</summary>
     public string? Tagline { get; set; }
 
-    /// <summary>The tenant's brand colour as #rrggbb.</summary>
     public string ThemeColor { get; set; } = MunicipalityInput.DefaultThemeColor;
 
-    /// <summary>Id of the logo image, or null when no logo was uploaded.</summary>
     public Guid? LogoImageId { get; set; }
 
     public int PositionCount { get; set; }
     public int CandidateCount { get; set; }
 }
 
-/// <summary>Body of POST and PUT /api/municipalities.</summary>
 public class MunicipalityInput
 {
     public const string DefaultThemeColor = "#1d4e89";

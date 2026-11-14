@@ -27,6 +27,5 @@
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
-    // Only a correlation id is shown. The exception itself is logged by the exception handler.
     protected override void OnInitialized() => requestId = Activity.Current?.TraceId.ToString() ?? HttpContext?.TraceIdentifier;
 }

@@ -29,7 +29,6 @@ public class CreateAdminUserViewModel
     [Display(Name = "Confirm password")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    /// <summary>The admin group (role) the new user joins.</summary>
     [Required(ErrorMessage = "Choose the group this administrator belongs to.")]
     [Display(Name = "Admin group")]
     public string RoleName { get; set; } = string.Empty;

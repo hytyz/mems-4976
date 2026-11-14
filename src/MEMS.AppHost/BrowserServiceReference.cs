@@ -6,13 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace MEMS.AppHost;
 
-/// <summary>
-/// <c>WithReference</c> for a Blazor WebAssembly app.
-/// A normal project receives a referenced service as <c>services__{name}__{scheme}__0</c>
-/// environment variables. A WebAssembly app runs in the browser and has no environment, so the
-/// same service-discovery keys are written to its <c>wwwroot/appsettings.json</c> instead
-/// (<c>Services:{name}:{scheme}:[url]</c>), where Microsoft.Extensions.ServiceDiscovery reads them.
-/// </summary>
 public static class BrowserServiceReference
 {
     public static IResourceBuilder<ProjectResource> WithBrowserServiceReference(
@@ -48,7 +41,6 @@ public static class BrowserServiceReference
             services[service.Resource.Name] = endpoints;
             root["Services"] = services;
 
-            // Leave the file alone when nothing changed, so a normal run causes no git diff.
             if (root.ToJsonString() != before)
             {
                 await File.WriteAllTextAsync(

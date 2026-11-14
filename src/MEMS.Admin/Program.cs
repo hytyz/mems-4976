@@ -12,17 +12,14 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// .NET Aspire: OpenTelemetry logs/traces/metrics, health checks, service discovery, resilience.
 builder.AddServiceDefaults();
 
-// SQL Server through the Aspire-managed connection string, plus the shared service layer.
 builder.AddMemsData();
 builder.Services.AddScoped<ITenantContextInitializer, CircuitTenantInitializer>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents(options => options.DetailedErrors = false);
 
-// ---- ASP.NET Core Identity with cookies ----
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
@@ -41,8 +38,6 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/account/access-denied";
 });
 
-// The account is re-checked on every request, so a deleted account, a reset password or a
-// deleted municipality ends the session immediately (one small query per page load).
 builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
 
 builder.Services.AddIdentityCore<ApplicationUser>(IdentityDefaults.Configure)
@@ -61,7 +56,6 @@ builder.Services.AddSingleton<ServiceLinks>();
 
 var app = builder.Build();
 
-// The admin site lives under /admin (https://localhost:port/admin). The bare root redirects there.
 app.Use((context, next) =>
 {
     if (context.Request.Path == "/")
@@ -74,7 +68,6 @@ app.Use((context, next) =>
 });
 app.UsePathBase("/admin");
 
-// Friendly error page in every environment: exception details go to the logs, never to the browser.
 app.UseExceptionHandler("/error", createScopeForErrors: true);
 if (!app.Environment.IsDevelopment())
 {
@@ -84,7 +77,6 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-// Routing must run after UsePathBase so endpoints are matched without the /admin prefix.
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -94,7 +86,6 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Sign-out is a POST protected by an antiforgery token (the [FromForm] parameter turns validation on).
 app.MapPost("/account/logout", async (SignInManager<ApplicationUser> signInManager, ILogger<Program> logger,
         HttpContext context, [FromForm] string? returnUrl) =>
     {
@@ -104,8 +95,6 @@ app.MapPost("/account/logout", async (SignInManager<ApplicationUser> signInManag
     })
     .RequireAuthorization();
 
-// Logos and photographs for the admin pages, read through the same tenant boundary:
-// a Municipality Administrator cannot load another municipality's images by guessing ids.
 app.MapGet("/images/{id:guid}", async (Guid id, HttpContext context, TenantContext tenant,
         IDbContextFactory<ApplicationDbContext> dbFactory, CancellationToken cancellationToken) =>
     {

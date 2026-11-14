@@ -31,7 +31,6 @@ public class CreateAdminUserInput : IValidatableObject
     [Required(ErrorMessage = "Choose a role.")]
     public string Role { get; set; } = AppRoles.MunicipalityAdmin;
 
-    /// <summary>Required for a Municipality Administrator; must be empty for a Super Admin.</summary>
     [Display(Name = "Municipality")]
     public int? MunicipalityId { get; set; }
 

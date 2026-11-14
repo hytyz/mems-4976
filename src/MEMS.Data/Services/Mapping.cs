@@ -4,7 +4,6 @@ using MEMS.Shared.Contracts;
 
 namespace MEMS.Data.Services;
 
-/// <summary>Entity → contract projections, translated to SQL by EF Core.</summary>
 internal static class Mapping
 {
     public static readonly Expression<Func<Municipality, MunicipalityDto>> ToMunicipalityDto = m => new MunicipalityDto

@@ -100,7 +100,6 @@ else if (input is not null)
 
     protected override async Task OnParametersSetAsync()
     {
-        // Only municipalities inside the administrator's tenant boundary are offered.
         municipalities = await Municipalities.ListAsync();
 
         if (!IsEdit)

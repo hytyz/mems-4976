@@ -156,7 +156,6 @@
         Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?> { ["positionId"] = id, ["page"] = null }));
     }
 
-    // Filtering by municipality means switching tenant: each municipality's data lives at its own URL.
     private void ChangeMunicipality(ChangeEventArgs e)
     {
         string? slug = e.Value?.ToString();
