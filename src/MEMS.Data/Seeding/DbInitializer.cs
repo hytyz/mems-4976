@@ -1,4 +1,5 @@
 using MEMS.Data.Entities;
+using MEMS.Data.Services;
 using MEMS.Data.Tenancy;
 using MEMS.Shared;
 using Microsoft.AspNetCore.Identity;
@@ -87,8 +88,38 @@ public static class DbInitializer
             db.Municipalities.Add(municipality);
         }
 
-        await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Seeded {MunicipalityCount} municipalities", SeedData.Municipalities.Length);
+        int imageCount = 0;
+        await db.InTransactionAsync(async () =>
+        {
+            await db.SaveChangesAsync(cancellationToken);
+
+            // Images reference their municipality, so they are attached once the municipalities have ids.
+            foreach (var municipality in db.Municipalities.Local)
+            {
+                if (SeedImages.Create($"logo.{municipality.Slug}.png", municipality.MunicipalityId) is { } logo)
+                {
+                    db.Images.Add(logo);
+                    municipality.Logo = logo;
+                    imageCount++;
+                }
+
+                foreach (var candidate in municipality.Positions.SelectMany(p => p.Candidates))
+                {
+                    string file = $"photo.{municipality.Slug}.{SlugRules.Suggest(candidate.Name)}.jpg";
+                    if (SeedImages.Create(file, municipality.MunicipalityId) is { } photo)
+                    {
+                        db.Images.Add(photo);
+                        candidate.Photo = photo;
+                        imageCount++;
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
+
+        logger.LogInformation("Seeded {MunicipalityCount} municipalities with {ImageCount} logos and photographs",
+            SeedData.Municipalities.Length, imageCount);
     }
 
     private static async Task SeedAccountsAsync(
