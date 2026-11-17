@@ -67,7 +67,7 @@ a Super Admin creates a new municipality in the admin site and its public site w
   <tr><td><code>richmondadmin</code></td><td>Municipality Administrator</td><td>Richmond</td></tr>
   <tr><td><code>pm</code></td><td>Municipality Administrator (Assignment 1 user)</td><td>Pitt Meadows</td></tr>
 </table>
-<p>Seed data: 5 municipalities (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), 15 positions (Mayor, Councillor and School Trustee for each), 39 candidates and 5 endorsements.
+<p>Seed data: 5 municipalities (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), 15 positions (Mayor, Councillor and School Trustee for each), 39 candidates and 5 endorsements, with a logo for every municipality and a portrait for every candidate (stored in SQL Server like uploaded images).
 Usernames are case-insensitive, so <code>Super</code> and <code>Burnabyadmin</code> also work.
 The initial password is the one the instructor specified in Assignment 1. It is set once, when an account is first created, and is never reset afterwards (section 13).</p>
 
@@ -387,7 +387,7 @@ The specification also mentions local storage for selections. Session storage wa
 <h3>A. Issues from the instructor's Assignment 1 marking</h3>
 <table>
   <tr><th style="width:15%">Issue</th><th style="width:33%">Original problem</th><th>Resolution</th></tr>
-  <tr><td>Database design</td><td>Seed data created positions and candidates only for Pitt Meadows.</td><td>Five municipalities seeded (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), each with Mayor, Councillor and School Trustee positions, 39 candidates in total, and an administrator for each.</td></tr>
+  <tr><td>Database design</td><td>Seed data created positions and candidates only for Pitt Meadows.</td><td>Five municipalities seeded (Burnaby, Surrey, Richmond, Pitt Meadows, Maple Ridge), each with Mayor, Councillor and School Trustee positions, 39 candidates in total, a logo for each municipality and a portrait for each candidate. Burnaby, Surrey, Richmond and Pitt Meadows each have an administrator.</td></tr>
   <tr><td>Database design</td><td>Configuration fell back to a default connection string.</td><td>No connection string in any project and no fallback. The app fails with a clear error unless Aspire supplies <code>ConnectionStrings:memsdb</code>.</td></tr>
   <tr><td>Authorization</td><td>Municipality administrators shared one role instead of distinct municipality-specific groups.</td><td>Each municipality has its own administrator group (<code>AspNetUsers.MunicipalityId</code> → <code>Municipality.Administrators</code>), so each administrator belongs to exactly one. Issued as <code>tenant_id</code> claims and enforced by query filters, the API <code>TenantAdmin</code> policy and the service layer. Each group is listed on its municipality's page.</td></tr>
   <tr><td>Authorization</td><td>Startup reset seeded users' passwords to the default.</td><td>The seeder only creates missing accounts and never changes existing ones. The initial password <code>P@$$w0rd</code> is the one the instructor specified in Assignment 1. It is no longer in the seeding code: it is the default of the Aspire parameter <code>seed-admin-password</code> in the AppHost's <code>appsettings.json</code>, and can be overridden in user secrets.</td></tr>
